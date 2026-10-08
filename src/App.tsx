@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { GroupCompetitionView } from './components/GroupCompetitionView';
 import { WeeklyScoreTable } from './components/WeeklyScoreTable';
@@ -14,6 +14,9 @@ import { RoleRemarksModal } from './components/RoleRemarksModal';
 import { ClassSettingsModal } from './components/ClassSettingsModal';
 import { AuthModal } from './components/AuthModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
+import { AIParentMessageModal } from './components/AIParentMessageModal';
+import { AIEarlyWarningModal } from './components/AIEarlyWarningModal';
+import { AIChatAssistant } from './components/AIChatAssistant';
 
 import type {
   Student,
@@ -33,6 +36,7 @@ import {
   type AppState,
 } from './utils/storage';
 import { calculateGroupSummaries } from './utils/scoring';
+import { syncRolesAndAccounts } from './utils/syncRoles';
 
 // ============================================================================
 // CẤU HÌNH ĐỒNG BỘ ĐÁM MÂY FIREBASE (PROJECT: trang-ec9ce)
@@ -86,8 +90,21 @@ async function syncToCloud(stateToSync: AppState) {
 }
 
 export default function App() {
-  // Load state an toàn: nếu loadAppState bị null thì dùng resetToInitialData
-  const [appState, setAppState] = useState<AppState>(() => loadAppState() || resetToInitialData());
+  // Load state an toàn: nếu loadAppState bị null thì dùng resetToInitialData, đồng thời tự động khớp chức vụ và học sinh
+  const [appState, setAppState] = useState<AppState>(() => {
+    const raw = loadAppState() || resetToInitialData();
+    const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+      raw.students || [],
+      raw.metadata || ({} as ClassMetadata),
+      raw.accounts || []
+    );
+    return {
+      ...raw,
+      students: syncedStudents,
+      metadata: syncedMetadata,
+      accounts: syncedAccounts,
+    };
+  });
   const [activeTab, setActiveTab] = useState<string>('competition');
 
   // Modals state
@@ -100,6 +117,12 @@ export default function App() {
   const [isRoleRemarksOpen, setIsRoleRemarksOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
+
+  // AI Features state
+  const [isParentMessageOpen, setIsParentMessageOpen] = useState(false);
+  const [parentMessageStudentId, setParentMessageStudentId] = useState<string | null>(null);
+  const [isEarlyWarningOpen, setIsEarlyWarningOpen] = useState(false);
+  const [isChatAssistantOpen, setIsChatAssistantOpen] = useState(false);
 
   // Lưu vào localStorage và tự động đẩy lên Firebase
   useEffect(() => {
@@ -214,6 +237,10 @@ export default function App() {
   } catch (error) {
     console.error("Lỗi tính toán groups (calculateGroupSummaries):", error);
   }
+
+  const allCalculatedScores = useMemo(() => {
+    return groups.flatMap((g) => g.students || []);
+  }, [groups]);
 
   const handleSelectRole = (newRole: UserRoleType) => {
     const matched = accounts.find((a) => a.role === newRole);
@@ -503,7 +530,37 @@ export default function App() {
   };
 
   const handleUpdateMetadata = (newMeta: ClassMetadata) => {
-    setAppState((prev) => ({ ...(prev || resetToInitialData()), metadata: newMeta }));
+    setAppState((prev) => {
+      const safePrev = prev || resetToInitialData();
+      const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+        safePrev.students || [],
+        newMeta,
+        safePrev.accounts || []
+      );
+      return {
+        ...safePrev,
+        metadata: syncedMetadata,
+        students: syncedStudents,
+        accounts: syncedAccounts,
+      };
+    });
+  };
+
+  const handleUpdateStudentsList = (newStudents: Student[]) => {
+    setAppState((prev) => {
+      const safePrev = prev || resetToInitialData();
+      const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+        newStudents,
+        safePrev.metadata,
+        safePrev.accounts || []
+      );
+      return {
+        ...safePrev,
+        students: syncedStudents,
+        metadata: syncedMetadata,
+        accounts: syncedAccounts,
+      };
+    });
   };
 
   const handleAddStudent = (data: Omit<Student, 'id' | 'stt'>) => {
@@ -515,9 +572,17 @@ export default function App() {
         id: `hs-${Date.now()}`,
         stt: newStt,
       };
+      const updatedList = [...(safePrev.students || []), newStudent];
+      const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+        updatedList,
+        safePrev.metadata,
+        safePrev.accounts || []
+      );
       return {
         ...safePrev,
-        students: [...(safePrev.students || []), newStudent],
+        students: syncedStudents,
+        metadata: syncedMetadata,
+        accounts: syncedAccounts,
       };
     });
   };
@@ -525,9 +590,17 @@ export default function App() {
   const handleUpdateStudent = (id: string, updated: Partial<Student>) => {
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
+      const updatedList = (safePrev.students || []).map((s) => (s.id === id ? { ...s, ...updated } : s));
+      const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+        updatedList,
+        safePrev.metadata,
+        safePrev.accounts || []
+      );
       return {
         ...safePrev,
-        students: (safePrev.students || []).map((s) => (s.id === id ? { ...s, ...updated } : s)),
+        students: syncedStudents,
+        metadata: syncedMetadata,
+        accounts: syncedAccounts,
       };
     });
   };
@@ -537,26 +610,59 @@ export default function App() {
       const safePrev = prev || resetToInitialData();
       const remaining = (safePrev.students || []).filter((s) => s.id !== id);
       const renumbered = remaining.map((s, idx) => ({ ...s, stt: idx + 1 }));
+      const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+        renumbered,
+        safePrev.metadata,
+        safePrev.accounts || []
+      );
       return {
         ...safePrev,
-        students: renumbered,
+        students: syncedStudents,
+        metadata: syncedMetadata,
+        accounts: syncedAccounts,
+      };
+    });
+  };
+
+  const handleClearAllStudents = () => {
+    setAppState((prev) => {
+      const safePrev = prev || resetToInitialData();
+      return {
+        ...safePrev,
+        students: [],
       };
     });
   };
 
   const handleResetData = () => {
     const initial = resetToInitialData();
-    setAppState(initial);
-    syncToCloud(initial);
+    const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+      initial.students || [],
+      initial.metadata,
+      initial.accounts || []
+    );
+    const fullInitial: AppState = {
+      ...initial,
+      students: syncedStudents,
+      metadata: syncedMetadata,
+      accounts: syncedAccounts,
+    };
+    setAppState(fullInitial);
+    syncToCloud(fullInitial);
   };
 
   const handleApplyNewRoster = (newStudents: Student[]) => {
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
+      const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+        newStudents,
+        safePrev.metadata,
+        safePrev.accounts || []
+      );
       const newWeeklyRecords = { ...safePrev.weeklyRecords };
       const currentWeekRecs: Record<string, StudentWeeklyRecord> = {};
 
-      newStudents.forEach((s) => {
+      syncedStudents.forEach((s) => {
         const existingRec = safePrev.weeklyRecords[safePrev.currentWeekId]?.[s.id];
         currentWeekRecs[s.id] = existingRec || {
           studentId: s.id,
@@ -571,8 +677,27 @@ export default function App() {
 
       return {
         ...safePrev,
-        students: newStudents,
+        students: syncedStudents,
+        metadata: syncedMetadata,
+        accounts: syncedAccounts,
         weeklyRecords: newWeeklyRecords,
+      };
+    });
+  };
+
+  const handleSyncAllRoles = () => {
+    setAppState((prev) => {
+      const safePrev = prev || resetToInitialData();
+      const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+        safePrev.students || [],
+        safePrev.metadata,
+        safePrev.accounts || []
+      );
+      return {
+        ...safePrev,
+        students: syncedStudents,
+        metadata: syncedMetadata,
+        accounts: syncedAccounts,
       };
     });
   };
@@ -595,6 +720,20 @@ export default function App() {
     setIsQuickEntryOpen(true);
   };
 
+  // Trình xử lý các tính năng AI
+  const handleOpenParentMessage = (student?: Student) => {
+    setParentMessageStudentId(student ? student.id : null);
+    setIsParentMessageOpen(true);
+  };
+
+  const handleOpenEarlyWarning = () => {
+    setIsEarlyWarningOpen(true);
+  };
+
+  const handleToggleChatAssistant = () => {
+    setIsChatAssistantOpen((prev) => !prev);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-['Be_Vietnam_Pro',sans-serif]">
       {/* Header bar */}
@@ -615,6 +754,9 @@ export default function App() {
         onOpenSettings={() => setIsClassSettingsOpen(true)}
         onOpenPrint={() => setIsPrintOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenParentMessage={handleOpenParentMessage}
+        onOpenEarlyWarning={handleOpenEarlyWarning}
+        onToggleChatAssistant={handleToggleChatAssistant}
         onLogout={handleLogout}
       />
 
@@ -653,6 +795,8 @@ export default function App() {
             assignedGroupIds={currentAccount?.assignedGroupIds}
             onUpdateRecord={handleUpdateRecord}
             onQuickRecordStudent={handleSelectStudentForQuickEntry}
+            onOpenParentMessage={handleOpenParentMessage}
+            onOpenEarlyWarning={handleOpenEarlyWarning}
           />
         )}
 
@@ -690,6 +834,8 @@ export default function App() {
             currentWeek={currentWeek}
             metadata={metadata}
             onOpenPrint={() => setIsPrintOpen(true)}
+            onOpenParentMessage={handleOpenParentMessage}
+            onOpenEarlyWarning={handleOpenEarlyWarning}
           />
         )}
       </main>
@@ -714,12 +860,16 @@ export default function App() {
         onClose={() => setIsClassRosterOpen(false)}
         students={students}
         metadata={metadata}
+        accounts={accounts}
         onUpdateMetadata={handleUpdateMetadata}
+        onUpdateAccounts={handleUpdateAccounts}
         onAddStudent={handleAddStudent}
         onUpdateStudent={handleUpdateStudent}
         onDeleteStudent={handleDeleteStudent}
         onResetData={handleResetData}
         onOpenImportModal={() => setIsImportModalOpen(true)}
+        onClearAllStudents={handleClearAllStudents}
+        onSyncAllRoles={handleSyncAllRoles}
       />
 
       <ImportStudentsModal
@@ -773,10 +923,58 @@ export default function App() {
         isOpen={isAccountManagerOpen}
         onClose={() => setIsAccountManagerOpen(false)}
         metadata={metadata}
+        students={students}
         accounts={accounts}
         currentRole={currentUserRole}
         onUpdateAccounts={handleUpdateAccounts}
+        onUpdateMetadata={handleUpdateMetadata}
+        onUpdateStudents={handleUpdateStudentsList}
         onSelectAccount={handleLogin}
+      />
+
+      {/* 3 Tính Năng AI Cốt Lõi: Soạn Tin Nhắn PH, Cảnh Báo Sớm, Chatbot Tra Cứu */}
+      <AIParentMessageModal
+        isOpen={isParentMessageOpen}
+        onClose={() => {
+          setIsParentMessageOpen(false);
+          setParentMessageStudentId(null);
+        }}
+        students={students}
+        currentWeek={currentWeek}
+        calculatedScores={allCalculatedScores}
+        metadata={metadata}
+        morningDuties={morningDutyRecords}
+        afternoonSessions={afternoonRecords}
+        initialStudentId={parentMessageStudentId}
+      />
+
+      <AIEarlyWarningModal
+        isOpen={isEarlyWarningOpen}
+        onClose={() => setIsEarlyWarningOpen(false)}
+        students={students}
+        weeks={weeks}
+        currentWeekId={currentWeekId}
+        calculatedScores={allCalculatedScores}
+        metadata={metadata}
+        morningDuties={morningDutyRecords}
+        afternoonSessions={afternoonRecords}
+        weeklyRecords={weeklyRecords}
+        onOpenParentMessageForStudent={(studentId) => {
+          setParentMessageStudentId(studentId);
+          setIsParentMessageOpen(true);
+        }}
+      />
+
+      <AIChatAssistant
+        metadata={metadata}
+        currentWeek={currentWeek}
+        students={students}
+        groupSummaries={groups}
+        calculatedScores={allCalculatedScores}
+        morningDuties={morningDutyRecords}
+        afternoonSessions={afternoonRecords}
+        isOpen={isChatAssistantOpen}
+        onToggle={handleToggleChatAssistant}
       />
     </div>
   );

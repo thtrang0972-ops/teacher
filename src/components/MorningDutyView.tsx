@@ -476,13 +476,35 @@ export const MorningDutyView: React.FC<MorningDutyViewProps> = ({
                       {r.recordedBy}
                     </td>
                     <td className="py-3 px-3 text-center">
-                      <button
-                        onClick={() => onDeleteMorningRecord(r.id)}
-                        className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors"
-                        title="Xóa biên bản này"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {(() => {
+                        const canDelete =
+                          currentRole === 'gvcn' ||
+                          currentRole === 'lopTruong' ||
+                          (currentRole.startsWith('nhomTruong') &&
+                            (assignedGroupIds?.includes(r.groupId) ||
+                              parseInt(currentRole.replace('nhomTruong', ''), 10) === r.groupId));
+
+                        if (!canDelete) {
+                          return (
+                            <span
+                              className="text-slate-300 p-1 inline-block cursor-not-allowed"
+                              title="Bạn chỉ có quyền xóa ghi nhận của nhóm mình phụ trách"
+                            >
+                              <Lock className="w-3.5 h-3.5" />
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <button
+                            onClick={() => onDeleteMorningRecord(r.id)}
+                            className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors cursor-pointer"
+                            title="Xóa biên bản này"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}

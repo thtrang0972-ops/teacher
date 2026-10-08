@@ -13,22 +13,28 @@ import {
   Download,
   FileSpreadsheet,
   Upload,
+  CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react';
-import { Student, ClassMetadata } from '../types/discipline';
+import { Student, ClassMetadata, UserAccount } from '../types/discipline';
 import { downloadSampleExcelTemplate, exportCurrentStudentsToExcel } from '../utils/excelImport';
+import { syncRolesAndAccounts } from '../utils/syncRoles';
 
 interface ClassRosterModalProps {
   isOpen: boolean;
   onClose: () => void;
   students: Student[];
   metadata: ClassMetadata;
+  accounts?: UserAccount[];
   onUpdateMetadata: (meta: ClassMetadata) => void;
+  onUpdateAccounts?: (accs: UserAccount[]) => void;
   onAddStudent: (student: Omit<Student, 'id' | 'stt'>) => void;
   onUpdateStudent: (id: string, updated: Partial<Student>) => void;
   onDeleteStudent: (id: string) => void;
   onResetData: () => void;
   onOpenImportModal: () => void;
   onClearAllStudents?: () => void;
+  onSyncAllRoles?: () => void;
 }
 
 export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
@@ -36,17 +42,25 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
   onClose,
   students,
   metadata,
+  accounts = [],
   onUpdateMetadata,
+  onUpdateAccounts,
   onAddStudent,
   onUpdateStudent,
   onDeleteStudent,
   onResetData,
   onOpenImportModal,
   onClearAllStudents,
+  onSyncAllRoles,
 }) => {
   const [selectedGroup, setSelectedGroup] = useState<number>(1);
   const [isAddingStudent, setIsAddingStudent] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
+
+  // Chỉnh sửa tên trực tiếp
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
+  const [syncSuccessNotice, setSyncSuccessNotice] = useState<string | null>(null);
 
   // Form thêm học sinh mới
   const [newName, setNewName] = useState('');
@@ -60,44 +74,132 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
 
   const groupStudents = students.filter((s) => s.groupId === selectedGroup);
 
+  // Hàm kích hoạt đồng bộ toàn diện giữa Học sinh - Chức vụ - Tài khoản
+  const triggerSync = (
+    updatedStudentsList: Student[],
+    updatedMeta?: ClassMetadata
+  ) => {
+    const metaToUse = updatedMeta || metadata;
+    const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+      updatedStudentsList,
+      metaToUse,
+      accounts
+    );
+
+    if (onUpdateMetadata) onUpdateMetadata(syncedMetadata);
+    if (onUpdateAccounts) onUpdateAccounts(syncedAccounts);
+    if (onSyncAllRoles) onSyncAllRoles();
+
+    setSyncSuccessNotice('Đã khớp chức vụ và đồng bộ tài khoản thành công!');
+    setTimeout(() => setSyncSuccessNotice(null), 2500);
+  };
+
   const handleRoleChange = (student: Student, newRoleVal: string) => {
     const isLeader = newRoleVal === 'Nhóm trưởng';
     const role = newRoleVal === 'Thành viên' ? undefined : newRoleVal;
 
-    onUpdateStudent(student.id, {
-      role,
-      isLeader,
+    // Cập nhật danh sách học sinh
+    const updatedStudents = students.map((s) => {
+      // Học sinh được chọn
+      if (s.id === student.id) {
+        return {
+          ...s,
+          role,
+          isLeader,
+        };
+      }
+
+      // Nếu bạn này thành Nhóm trưởng, hủy Nhóm trưởng của bạn khác trong cùng nhóm
+      if (isLeader && s.groupId === student.groupId && s.isLeader) {
+        return {
+          ...s,
+          isLeader: false,
+          role: s.role?.includes('Nhóm trưởng') ? undefined : s.role,
+        };
+      }
+
+      // Nếu bạn này thành Lớp trưởng / Lớp phó, hủy chức danh đó ở bạn khác trong lớp
+      if (
+        (newRoleVal === 'Lớp trưởng' && s.role === 'Lớp trưởng') ||
+        (newRoleVal === 'Lớp phó Học tập' && s.role === 'Lớp phó Học tập') ||
+        (newRoleVal === 'Lớp phó Lao động' && s.role === 'Lớp phó Lao động') ||
+        (newRoleVal === 'Lớp phó Trật tự' && s.role === 'Lớp phó Trật tự')
+      ) {
+        return {
+          ...s,
+          role: undefined,
+        };
+      }
+
+      return s;
     });
 
-    // Nếu học sinh được chọn làm Nhóm trưởng, bỏ đánh dấu Nhóm trưởng của các bạn khác cùng nhóm
+    onUpdateStudent(student.id, { role, isLeader });
+
+    // Cập nhật metadata tương ứng
+    let updatedMeta = { ...metadata };
     if (isLeader) {
-      students
-        .filter((other) => other.groupId === student.groupId && other.id !== student.id && other.isLeader)
-        .forEach((other) => {
-          onUpdateStudent(other.id, { isLeader: false, role: undefined });
-        });
-      if (onUpdateMetadata) {
-        onUpdateMetadata({
-          ...metadata,
-          groupLeaders: {
-            ...(metadata.groupLeaders || {}),
-            [student.groupId]: student.name,
-          },
-        });
-      }
-    } else if (newRoleVal === 'Lớp trưởng' && onUpdateMetadata) {
-      onUpdateMetadata({ ...metadata, monitorName: student.name });
-    } else if (newRoleVal === 'Lớp phó Học tập' && onUpdateMetadata) {
-      onUpdateMetadata({ ...metadata, academicViceMonitorName: student.name });
-    } else if (newRoleVal === 'Lớp phó Lao động' && onUpdateMetadata) {
-      onUpdateMetadata({ ...metadata, laborViceMonitorName: student.name });
-    } else if (newRoleVal === 'Lớp phó Trật tự' && onUpdateMetadata) {
-      onUpdateMetadata({
-        ...metadata,
+      updatedMeta = {
+        ...updatedMeta,
+        groupLeaders: {
+          ...(updatedMeta.groupLeaders || {}),
+          [student.groupId]: student.name,
+        },
+      };
+    } else if (newRoleVal === 'Lớp trưởng') {
+      updatedMeta = { ...updatedMeta, monitorName: student.name };
+    } else if (newRoleVal === 'Lớp phó Học tập') {
+      updatedMeta = { ...updatedMeta, academicViceMonitorName: student.name };
+    } else if (newRoleVal === 'Lớp phó Lao động') {
+      updatedMeta = { ...updatedMeta, laborViceMonitorName: student.name };
+    } else if (newRoleVal === 'Lớp phó Trật tự') {
+      updatedMeta = {
+        ...updatedMeta,
         disciplineViceMonitorName: student.name,
         viceMonitorName: student.name,
-      });
+      };
     }
+
+    triggerSync(updatedStudents, updatedMeta);
+  };
+
+  const handleStartEditName = (student: Student) => {
+    setEditingStudentId(student.id);
+    setEditingName(student.name);
+  };
+
+  const handleSaveStudentName = (studentId: string) => {
+    if (!editingName.trim()) return;
+    const trimmed = editingName.trim();
+
+    const targetStudent = students.find((s) => s.id === studentId);
+    onUpdateStudent(studentId, { name: trimmed });
+
+    if (targetStudent) {
+      const updatedList = students.map((s) => (s.id === studentId ? { ...s, name: trimmed } : s));
+      let updatedMeta = { ...metadata };
+
+      if (targetStudent.isLeader) {
+        updatedMeta.groupLeaders = {
+          ...(updatedMeta.groupLeaders || {}),
+          [targetStudent.groupId]: trimmed,
+        };
+      }
+      if (targetStudent.role === 'Lớp trưởng') {
+        updatedMeta.monitorName = trimmed;
+      } else if (targetStudent.role === 'Lớp phó Học tập') {
+        updatedMeta.academicViceMonitorName = trimmed;
+      } else if (targetStudent.role === 'Lớp phó Lao động') {
+        updatedMeta.laborViceMonitorName = trimmed;
+      } else if (targetStudent.role === 'Lớp phó Trật tự') {
+        updatedMeta.disciplineViceMonitorName = trimmed;
+        updatedMeta.viceMonitorName = trimmed;
+      }
+
+      triggerSync(updatedList, updatedMeta);
+    }
+
+    setEditingStudentId(null);
   };
 
   const handleAddSubmit = (e: React.FormEvent) => {
@@ -276,6 +378,75 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
                 </div>
               ) : null}
 
+              {/* Thông báo đồng bộ thành công */}
+              {syncSuccessNotice && (
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{syncSuccessNotice}</span>
+                </div>
+              )}
+
+              {/* Bảng đối chiếu chức vụ và 6 nhóm trưởng */}
+              <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wide">
+                      Khớp Tên Học Sinh & Chức Vụ (Đồng Bộ 100% Với Tài Khoản Đăng Nhập)
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => triggerSync(students)}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-100 border border-indigo-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                    title="Tự động đối chiếu và khớp chức vụ toàn lớp với tài khoản"
+                  >
+                    <RefreshCw className="w-3 h-3 text-indigo-600" />
+                    <span>Đồng bộ khớp chức vụ ngay</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                    <span className="text-[10px] text-slate-500 block">🎖️ Lớp trưởng</span>
+                    <span className="font-bold text-slate-900 truncate block">
+                      {metadata.monitorName || 'Chưa chỉ định'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                    <span className="text-[10px] text-slate-500 block">📚 LP Học tập</span>
+                    <span className="font-bold text-slate-900 truncate block">
+                      {metadata.academicViceMonitorName || 'Chưa chỉ định'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                    <span className="text-[10px] text-slate-500 block">🧹 LP Lao động</span>
+                    <span className="font-bold text-slate-900 truncate block">
+                      {metadata.laborViceMonitorName || 'Chưa chỉ định'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                    <span className="text-[10px] text-slate-500 block">🛡️ LP Trật tự</span>
+                    <span className="font-bold text-slate-900 truncate block">
+                      {metadata.disciplineViceMonitorName || metadata.viceMonitorName || 'Chưa chỉ định'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 pt-1 border-t border-indigo-100 text-[11px]">
+                  {[1, 2, 3, 4, 5, 6].map((g) => {
+                    const leaderName = metadata.groupLeaders?.[g] || 'Chưa có';
+                    return (
+                      <div key={g} className="p-1.5 bg-white rounded-lg border border-sky-100">
+                        <span className="text-[10px] text-sky-700 font-semibold block">🚩 Nhóm trưởng {g}</span>
+                        <span className="font-bold text-slate-900 truncate block text-[11px]">{leaderName}</span>
+                        <span className="text-[9px] text-slate-400 block">TK: nhom{g}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Chọn Nhóm 1 -> 6 */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
@@ -392,11 +563,76 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
                           {idx + 1}
                         </td>
                         <td className="py-2.5 px-3 font-semibold text-slate-900">
-                          {s.name}
-                          {s.isLeader && (
-                            <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold">
-                              Nhóm trưởng
-                            </span>
+                          {editingStudentId === s.id ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={editingName}
+                                onChange={(e) => setEditingName(e.target.value)}
+                                className="text-xs p-1 font-bold border border-indigo-400 rounded bg-white w-36 sm:w-44 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveStudentName(s.id);
+                                  if (e.key === 'Escape') setEditingStudentId(null);
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveStudentName(s.id)}
+                                className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-bold cursor-pointer"
+                              >
+                                Lưu
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingStudentId(null)}
+                                className="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] cursor-pointer"
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-slate-900">{s.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditName(s)}
+                                className="text-slate-300 hover:text-indigo-600 p-0.5 rounded cursor-pointer transition-colors"
+                                title="Đổi tên học sinh (sẽ tự động đồng bộ chức vụ và tài khoản nếu có)"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                              {s.isLeader && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-200">
+                                  🚩 Nhóm trưởng N{s.groupId}
+                                </span>
+                              )}
+                              {s.role === 'Lớp trưởng' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-800 font-bold border border-indigo-200">
+                                  🎖️ Lớp trưởng
+                                </span>
+                              )}
+                              {s.role === 'Lớp phó Học tập' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 font-bold border border-blue-200">
+                                  📚 LP Học tập
+                                </span>
+                              )}
+                              {s.role === 'Lớp phó Lao động' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                                  🧹 LP Lao động
+                                </span>
+                              )}
+                              {s.role === 'Lớp phó Trật tự' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-200">
+                                  🛡️ LP Trật tự
+                                </span>
+                              )}
+                              {s.role === 'Cờ đỏ' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 font-bold border border-rose-200">
+                                  🚩 Cờ đỏ
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="py-2.5 px-3 text-slate-600">{s.gender}</td>

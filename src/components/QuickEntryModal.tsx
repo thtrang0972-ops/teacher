@@ -96,25 +96,41 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
   const [sessionDetail, setSessionDetail] = useState('');
   const [note, setNote] = useState('');
 
+  const [crossGroupWarning, setCrossGroupWarning] = useState<string | null>(null);
+
   // Lọc tiêu chí theo vai trò
   const availableCriteria = CRITERIA_LIST.filter((crit) => {
     return canEditCriterion(currentRole, crit.key);
   });
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setCrossGroupWarning(null);
+      return;
+    }
 
     // Thiết lập nhóm filter ban đầu
     if (currentRole.startsWith('nhomTruong')) {
       setGroupFilter(defaultAllowedGroup);
-      const studentInGroup = students.find((s) => s.groupId === defaultAllowedGroup);
+      if (initialStudent && !allowedGroups.includes(initialStudent.groupId)) {
+        setCrossGroupWarning(
+          `Bạn đang đăng nhập với tư cách Nhóm trưởng Nhóm ${defaultAllowedGroup}. Hệ thống đã tự động chuyển sang danh sách Nhóm ${defaultAllowedGroup} vì bạn chỉ phụ trách ghi nhận nhóm của mình.`
+        );
+      } else {
+        setCrossGroupWarning(null);
+      }
+      const studentInGroup =
+        (initialStudent && allowedGroups.includes(initialStudent.groupId) ? initialStudent : null) ||
+        students.find((s) => s.groupId === defaultAllowedGroup);
       if (studentInGroup) {
         setSelectedStudentId(studentInGroup.id);
       }
     } else if (initialStudent) {
+      setCrossGroupWarning(null);
       setSelectedStudentId(initialStudent.id);
       setGroupFilter(initialStudent.groupId);
     } else {
+      setCrossGroupWarning(null);
       setGroupFilter('ALL');
       if (students.length > 0) {
         setSelectedStudentId(students[0].id);
@@ -131,7 +147,7 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
     } else if (availableCriteria.length > 0 && !availableCriteria.some((c) => c.key === selectedKey)) {
       setSelectedKey(availableCriteria[0].key);
     }
-  }, [initialStudent, currentRole, isOpen]);
+  }, [initialStudent, currentRole, isOpen, defaultAllowedGroup]);
 
   if (!isOpen) return null;
 
@@ -253,6 +269,14 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
                 >
                   Sửa / Điều Chỉnh →
                 </button>
+              </div>
+            )}
+
+            {/* Cảnh báo chuyển nhóm cho nhóm trưởng */}
+            {crossGroupWarning && (
+              <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span className="leading-relaxed font-medium">{crossGroupWarning}</span>
               </div>
             )}
 

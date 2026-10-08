@@ -16,6 +16,9 @@ import {
   Users,
   Calendar,
   FileSpreadsheet,
+  ShieldAlert,
+  MessageSquare,
+  Bot,
 } from 'lucide-react';
 import { WeekInfo, ClassMetadata, UserAccount, Student } from '../types/discipline';
 import { ColorTheme } from '../types/theme';
@@ -40,6 +43,9 @@ interface HeaderProps {
   onOpenThemeModal?: () => void;
   onOpenAuthModal?: () => void;
   onOpenImportRoster?: () => void;
+  onOpenParentMessage?: (student?: Student) => void;
+  onOpenEarlyWarning?: () => void;
+  onToggleChatAssistant?: () => void;
   onLogout?: () => void;
 }
 
@@ -61,6 +67,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenThemeModal,
   onOpenAuthModal,
   onOpenImportRoster,
+  onOpenParentMessage,
+  onOpenEarlyWarning,
+  onToggleChatAssistant,
   onLogout,
 }) => {
   const currentWeek =
@@ -407,6 +416,46 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             );
           })}
+
+          {/* Dải phân cách */}
+          <div className="h-5 w-px bg-blue-400/30 mx-1 shrink-0 hidden sm:block" />
+
+          {/* 3 Nút Tính năng AI cốt lõi */}
+          {onOpenParentMessage && (
+            <button
+              type="button"
+              onClick={() => onOpenParentMessage()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl bg-amber-400 hover:bg-amber-300 text-blue-950 font-black whitespace-nowrap transition-all shadow-xs cursor-pointer hover:scale-[1.02]"
+              title="Dùng AI tự động soạn tin nhắn hoặc email nhận xét định kỳ gửi phụ huynh"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-900 animate-pulse" />
+              <span>Soạn tin PH (AI)</span>
+            </button>
+          )}
+
+          {onOpenEarlyWarning && (
+            <button
+              type="button"
+              onClick={onOpenEarlyWarning}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl bg-rose-500/90 hover:bg-rose-500 text-white font-bold whitespace-nowrap transition-all border border-rose-300/40 shadow-xs cursor-pointer hover:scale-[1.02]"
+              title="AI phân tích biểu đồ điểm số để đưa ra cảnh báo sớm học sinh sa sút"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-200" />
+              <span>Cảnh báo sớm AI</span>
+            </button>
+          )}
+
+          {onToggleChatAssistant && (
+            <button
+              type="button"
+              onClick={onToggleChatAssistant}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl bg-blue-950/80 hover:bg-blue-900 text-blue-100 border border-blue-400/40 font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer hover:scale-[1.02]"
+              title="Khung chat nhỏ tra cứu nhanh: Hôm nay ai trực nhật? Điểm TB lớp..."
+            >
+              <Bot className="w-3.5 h-3.5 text-amber-300" />
+              <span>Trợ lý hỏi nhanh</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

@@ -12,6 +12,8 @@ import {
   HelpCircle,
   Sparkles,
   SlidersHorizontal,
+  ShieldAlert,
+  MessageSquare,
 } from 'lucide-react';
 import {
   Student,
@@ -41,6 +43,8 @@ interface WeeklyScoreTableProps {
   onQuickRecordStudent: (student: Student) => void;
   onOpenQuickEntry?: () => void;
   onOpenAdjustScore?: (student?: Student) => void;
+  onOpenParentMessage?: (student?: Student) => void;
+  onOpenEarlyWarning?: () => void;
 }
 
 export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
@@ -54,6 +58,8 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   onQuickRecordStudent,
   onOpenQuickEntry,
   onOpenAdjustScore,
+  onOpenParentMessage,
+  onOpenEarlyWarning,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | 'ALL'>('ALL');
@@ -306,19 +312,29 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
               >
                 Cả 6 nhóm
               </button>
-              {[1, 2, 3, 4, 5, 6].map((g) => (
-                <button
-                  key={g}
-                  onClick={() => setSelectedGroupFilter(g)}
-                  className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-                    selectedGroupFilter === g
-                      ? 'bg-white text-indigo-700 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  N{g}
-                </button>
-              ))}
+              {(() => {
+                const myGroup = assignedGroupIds?.[0] || (currentRole.startsWith('nhomTruong') ? parseInt(currentRole.replace('nhomTruong', ''), 10) : undefined);
+                return [1, 2, 3, 4, 5, 6].map((g) => {
+                  const isMyGroup = myGroup === g;
+                  return (
+                    <button
+                      key={g}
+                      onClick={() => setSelectedGroupFilter(g)}
+                      title={isMyGroup ? `Nhóm ${g} (Bạn phụ trách ghi nhận & chấm điểm)` : `Nhóm ${g}`}
+                      className={`px-2 py-1 text-xs font-semibold rounded transition-colors flex items-center gap-0.5 cursor-pointer ${
+                        selectedGroupFilter === g
+                          ? 'bg-white text-indigo-700 shadow-xs'
+                          : isMyGroup
+                          ? 'text-indigo-800 font-bold bg-indigo-100/70 hover:bg-indigo-200'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>N{g}</span>
+                      {isMyGroup && <span className="text-[10px] text-amber-500 font-black">★</span>}
+                    </button>
+                  );
+                });
+              })()}
             </div>
 
             {/* Filter by Classification */}
@@ -350,6 +366,32 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
               </button>
             )}
 
+            {/* Nút Soạn tin nhắn PHHS bằng AI */}
+            {onOpenParentMessage && (
+              <button
+                type="button"
+                onClick={() => onOpenParentMessage()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-xs transition-colors cursor-pointer"
+                title="Tự động soạn tin nhắn Zalo hoặc email gửi phụ huynh bằng AI"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                <span>Soạn Tin PH (AI)</span>
+              </button>
+            )}
+
+            {/* Nút Cảnh báo sớm AI */}
+            {onOpenEarlyWarning && (
+              <button
+                type="button"
+                onClick={onOpenEarlyWarning}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg shadow-xs transition-colors cursor-pointer"
+                title="AI phân tích học sinh sa sút điểm số qua các tuần để cảnh báo sớm"
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                <span>Cảnh Báo Sớm AI</span>
+              </button>
+            )}
+
             {/* Export CSV button */}
             <button
               onClick={exportToCSV}
@@ -360,6 +402,39 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Thông báo trách nhiệm nhóm trưởng */}
+        {(() => {
+          if (!currentRole.startsWith('nhomTruong')) return null;
+          const myGroup = assignedGroupIds?.[0] || parseInt(currentRole.replace('nhomTruong', ''), 10);
+          if (selectedGroupFilter !== myGroup) {
+            return (
+              <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs flex items-center justify-between flex-wrap gap-2">
+                <span className="flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>
+                    Bạn là Nhóm trưởng Nhóm {myGroup}. Các ô điểm của nhóm khác chỉ ở chế độ xem, bạn chỉ phụ trách chấm điểm học sinh Nhóm {myGroup}.
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedGroupFilter(myGroup)}
+                  className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+                >
+                  Quay lại Nhóm {myGroup} của bạn →
+                </button>
+              </div>
+            );
+          }
+          return (
+            <div className="mt-3 p-2 bg-indigo-50/70 border border-indigo-200 rounded-lg text-indigo-950 text-xs flex items-center gap-1.5 font-medium">
+              <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>
+                Đang hiển thị <strong>Nhóm {myGroup}</strong>: Bạn có toàn quyền ghi nhận vi phạm và chấm điểm cho các học sinh trong nhóm của mình.
+              </span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Main Table Matching User's Image */}
@@ -510,6 +585,15 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                                 className="text-slate-300 hover:text-amber-600 p-0.5 rounded cursor-pointer"
                               >
                                 <SlidersHorizontal className="w-3 h-3 text-amber-500 hover:text-amber-600" />
+                              </button>
+                            )}
+                            {onOpenParentMessage && (
+                              <button
+                                onClick={() => onOpenParentMessage(item.student)}
+                                title={`Soạn tin nhắn phụ huynh bằng AI cho ${item.student.name}`}
+                                className="text-slate-300 hover:text-blue-600 p-0.5 rounded cursor-pointer"
+                              >
+                                <Sparkles className="w-3 h-3 text-blue-500 hover:text-blue-600" />
                               </button>
                             )}
                           </div>

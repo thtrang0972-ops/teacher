@@ -13,18 +13,23 @@ import {
   EyeOff,
   User,
   Users,
+  RefreshCw,
 } from 'lucide-react';
-import { UserAccount, ClassMetadata, UserRoleType } from '../types/discipline';
+import { UserAccount, ClassMetadata, UserRoleType, Student } from '../types/discipline';
 import { INITIAL_ACCOUNTS } from '../data/initialData';
 import { getRolePermissionBadge } from '../utils/permissions';
+import { syncRolesAndAccounts } from '../utils/syncRoles';
 
 interface AccountManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   metadata: ClassMetadata;
+  students?: Student[];
   accounts: UserAccount[];
   currentRole?: UserRoleType;
   onUpdateAccounts: (accounts: UserAccount[]) => void;
+  onUpdateMetadata?: (metadata: ClassMetadata) => void;
+  onUpdateStudents?: (students: Student[]) => void;
   onSelectAccount: (accountId: string) => void;
 }
 
@@ -32,9 +37,12 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   isOpen,
   onClose,
   metadata,
+  students = [],
   accounts,
   currentRole = 'gvcn',
   onUpdateAccounts,
+  onUpdateMetadata,
+  onUpdateStudents,
   onSelectAccount,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -98,9 +106,47 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
     });
 
     onUpdateAccounts(updated);
+
+    // Đồng bộ ngược lại vào metadata & students nếu sửa tên học sinh đảm nhiệm
+    const currentAcc = accounts.find((a) => a.id === accId);
+    if (currentAcc && students.length > 0) {
+      const newName = editDisplayName.trim();
+      const updatedMeta = { ...metadata };
+      if (currentAcc.role.startsWith('nhomTruong')) {
+        const gNum = parseInt(currentAcc.role.replace('nhomTruong', ''), 10);
+        if (updatedMeta.groupLeaders) {
+          updatedMeta.groupLeaders[gNum] = newName;
+        }
+      } else if (currentAcc.role === 'lopTruong') {
+        updatedMeta.monitorName = newName;
+      } else if (currentAcc.role === 'lopPhoHocTap') {
+        updatedMeta.academicViceMonitorName = newName;
+      } else if (currentAcc.role === 'lopPhoLaoDong') {
+        updatedMeta.laborViceMonitorName = newName;
+      } else if (currentAcc.role === 'lopPhoTratTu') {
+        updatedMeta.disciplineViceMonitorName = newName;
+        updatedMeta.viceMonitorName = newName;
+      }
+      if (onUpdateMetadata) onUpdateMetadata(updatedMeta);
+    }
+
     setEditingId(null);
-    setNotice(`Đã cập nhật tài khoản thành công!`);
+    setNotice(`Đã cập nhật tài khoản và khớp chức vụ thành công!`);
     setTimeout(() => setNotice(null), 2000);
+  };
+
+  // Đồng bộ tự động 1 click từ danh sách học sinh
+  const handleAutoSyncFromStudents = () => {
+    const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+      students,
+      metadata,
+      accounts
+    );
+    onUpdateAccounts(syncedAccounts);
+    if (onUpdateMetadata) onUpdateMetadata(syncedMetadata);
+    if (onUpdateStudents) onUpdateStudents(syncedStudents);
+    setNotice('Đã khớp 100% tên học sinh và chức vụ 6 nhóm trưởng vào tài khoản!');
+    setTimeout(() => setNotice(null), 2500);
   };
 
   const handleResetToDefault = () => {
@@ -151,7 +197,17 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
             <span className="text-[11px] text-slate-500">Mật khẩu mặc định: <code className="bg-slate-200 px-1 py-0.5 rounded font-bold text-slate-800">123</code></span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleAutoSyncFromStudents}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 shadow-2xs transition-colors cursor-pointer"
+              title="Tự động đồng bộ và khớp tên học sinh theo chức vụ trong lớp"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Khớp tên theo DS học sinh</span>
+            </button>
+
             <button
               type="button"
               onClick={handlePrintCredentials}
@@ -226,13 +282,37 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
                       <td className="py-3 px-3">
                         {isEditing ? (
-                          <input
-                            type="text"
-                            value={editDisplayName}
-                            onChange={(e) => setEditDisplayName(e.target.value)}
-                            placeholder="Họ và tên"
-                            className="w-full text-xs font-bold p-1.5 bg-white border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500"
-                          />
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              value={editDisplayName}
+                              onChange={(e) => setEditDisplayName(e.target.value)}
+                              placeholder="Họ và tên"
+                              className="w-full text-xs font-bold p-1.5 bg-white border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            />
+                            {students.length > 0 && acc.role !== 'gvcn' && (
+                              <select
+                                onChange={(e) => {
+                                  if (e.target.value) setEditDisplayName(e.target.value);
+                                }}
+                                className="w-full text-[10px] p-1 bg-indigo-50/70 border border-indigo-200 rounded text-indigo-900 font-semibold cursor-pointer"
+                              >
+                                <option value="">-- Khớp với học sinh trong lớp --</option>
+                                {(acc.role.startsWith('nhomTruong')
+                                  ? students.filter(
+                                      (s) =>
+                                        s.groupId ===
+                                        parseInt(acc.role.replace('nhomTruong', ''), 10)
+                                    )
+                                  : students
+                                ).map((s) => (
+                                  <option key={s.id} value={s.name}>
+                                    {s.stt}. {s.name} (N{s.groupId}{s.role ? ` - ${s.role}` : ''})
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
                         ) : (
                           <span className="font-black text-slate-900 block text-xs">
                             {acc.displayName}

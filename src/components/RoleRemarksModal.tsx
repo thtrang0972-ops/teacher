@@ -273,16 +273,19 @@ ${formData.officerRemarks.teacherAdvice.advice || 'GVCN đồng ý với kết q
                 <button
                   key={g}
                   onClick={() => setActiveTab(tabId)}
-                  className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${
+                  className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-indigo-600 text-white shadow-xs font-bold'
                       : hasPerm
-                      ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                      ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold'
                       : 'text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   <span>🚩</span>
                   <span>Nhóm {g}</span>
+                  {!hasPerm && currentRole !== 'gvcn' && currentRole !== 'lopTruong' && (
+                    <Lock className="w-2.5 h-2.5 text-slate-400 opacity-60" />
+                  )}
                 </button>
               );
             })}
