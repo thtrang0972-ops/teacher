@@ -28,6 +28,7 @@ import {
   canEditCriterion,
   getRolePermissionBadge,
 } from '../utils/permissions';
+import { addAuditLog } from '../utils/storage';
 
 interface AdjustScoreModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ interface AdjustScoreModalProps {
   currentRole?: UserRoleType;
   assignedGroupIds?: number[];
   currentAccount?: UserAccount;
+  currentWeekId?: number;
   currentWeekName: string;
   onSaveAdjustment: (
     studentId: string,
@@ -55,6 +57,7 @@ export const AdjustScoreModal: React.FC<AdjustScoreModalProps> = ({
   currentRole = 'gvcn',
   assignedGroupIds,
   currentAccount,
+  currentWeekId = 1,
   currentWeekName,
   onSaveAdjustment,
 }) => {
@@ -233,6 +236,42 @@ export const AdjustScoreModal: React.FC<AdjustScoreModalProps> = ({
         }
       } else {
         updated.note = reasonPrefix;
+      }
+    }
+
+    // Ghi nhật ký chỉnh sửa điểm (Audit Logs) cho từng tiêu chí có sự thay đổi
+    if (currentStudent) {
+      const editorName =
+        currentAccount?.displayName ||
+        (currentRole === 'gvcn' ? 'Cô Nguyễn Thị Thuỳ Trang' : 'Người dùng');
+      const editorRole =
+        currentAccount?.title ||
+        (currentRole === 'gvcn' ? 'Giáo viên chủ nhiệm' : currentRole);
+
+      for (const crit of CRITERIA_LIST) {
+        const oldVal = Number(originalRecord?.[crit.key] || 0);
+        const newVal = Number(updated[crit.key] || 0);
+        if (oldVal !== newVal) {
+          const pointsDelta = (newVal - oldVal) * crit.points;
+          addAuditLog({
+            weekId: currentWeekId,
+            weekName: currentWeekName,
+            studentId: currentStudent.id,
+            studentName: currentStudent.name,
+            groupId: currentStudent.groupId,
+            criterionKey: String(crit.key),
+            criterionLabel: `${crit.name} (${crit.points > 0 ? '+' : ''}${crit.points}đ)`,
+            oldValue: oldVal,
+            newValue: newVal,
+            delta: pointsDelta,
+            reason: adjustmentReason.trim()
+              ? `Điều chỉnh vi phạm: ${adjustmentReason.trim()}`
+              : 'Sửa lỗi vi phạm qua bảng chỉnh sửa điểm',
+            editorName,
+            editorRole,
+            editorAccountId: currentAccount?.id,
+          });
+        }
       }
     }
 

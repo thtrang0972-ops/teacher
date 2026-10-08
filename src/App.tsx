@@ -14,6 +14,7 @@ import { RoleRemarksModal } from './components/RoleRemarksModal';
 import { ClassSettingsModal } from './components/ClassSettingsModal';
 import { AuthModal } from './components/AuthModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
+import { AdjustScoreModal } from './components/AdjustScoreModal';
 import { AIParentMessageModal } from './components/AIParentMessageModal';
 import { AIEarlyWarningModal } from './components/AIEarlyWarningModal';
 import { AIChatAssistant } from './components/AIChatAssistant';
@@ -722,6 +723,10 @@ export default function App() {
 
   // Trình xử lý các tính năng AI
   const handleOpenParentMessage = (student?: Student) => {
+    // Chỉ GVCN mới có quyền mở tính năng Soạn tin nhắn phụ huynh bằng AI
+    if (currentUserRole !== 'gvcn' && currentAccount?.role !== 'gvcn') {
+      return;
+    }
     setParentMessageStudentId(student ? student.id : null);
     setIsParentMessageOpen(true);
   };
@@ -790,11 +795,18 @@ export default function App() {
             students={students}
             records={currentRecords}
             currentWeekName={currentWeek.name}
+            currentWeekId={currentWeekId}
+            weeks={weeks}
             currentRole={currentUserRole}
             assignedGroupIds={currentAccount?.assignedGroupIds}
+            currentAccount={currentAccount}
             onUpdateRecord={handleUpdateRecord}
             onQuickRecordStudent={handleSelectStudentForQuickEntry}
-            onOpenParentMessage={handleOpenParentMessage}
+            onOpenParentMessage={
+              currentUserRole === 'gvcn' || currentAccount?.role === 'gvcn'
+                ? handleOpenParentMessage
+                : undefined
+            }
           />
         )}
 
@@ -942,6 +954,8 @@ export default function App() {
         morningDuties={morningDutyRecords}
         afternoonSessions={afternoonRecords}
         initialStudentId={parentMessageStudentId}
+        currentRole={currentUserRole}
+        currentAccount={currentAccount}
       />
 
       <AIEarlyWarningModal
@@ -955,10 +969,14 @@ export default function App() {
         morningDuties={morningDutyRecords}
         afternoonSessions={afternoonRecords}
         weeklyRecords={weeklyRecords}
-        onOpenParentMessageForStudent={(studentId) => {
-          setParentMessageStudentId(studentId);
-          setIsParentMessageOpen(true);
-        }}
+        onOpenParentMessageForStudent={
+          currentUserRole === 'gvcn' || currentAccount?.role === 'gvcn'
+            ? (studentId) => {
+                setParentMessageStudentId(studentId);
+                setIsParentMessageOpen(true);
+              }
+            : undefined
+        }
       />
 
       <AIChatAssistant

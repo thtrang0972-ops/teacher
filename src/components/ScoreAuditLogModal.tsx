@@ -51,34 +51,7 @@ export const ScoreAuditLogModal: React.FC<ScoreAuditLogModalProps> = ({
 
   if (!isOpen) return null;
 
-  // BẢO MẬT: Chỉ Giáo viên chủ nhiệm mới có quyền xem nhật ký này
-  if (currentRole !== 'gvcn') {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
-          <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
-            <Lock className="w-7 h-7" />
-          </div>
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900">
-              Quyền Riêng Tư Của Giáo Viên Chủ Nhiệm
-            </h3>
-            <p className="text-xs text-slate-600 leading-relaxed mt-1.5">
-              Nhật ký chỉnh sửa điểm nề nếp chứa thông tin giám sát nhạy cảm và được bảo mật tuyệt đối.
-              Chỉ tài khoản <strong>Giáo viên chủ nhiệm (GVCN)</strong> mới có quyền truy cập khu vực này.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
-          >
-            Đã hiểu và Đóng
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const isGVCN = currentRole === 'gvcn';
 
   // Lọc danh sách nhật ký
   const filteredLogs = logs.filter((log) => {

@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Calendar,
   Layers,
+  Lock,
 } from 'lucide-react';
 import {
   Student,
@@ -25,6 +26,8 @@ import {
   ClassMetadata,
   MorningDutyRecord,
   AfternoonRecord,
+  UserRoleType,
+  UserAccount,
 } from '../types/discipline';
 import { AIMessageTone, StudentViolationsSummary, ParentMessageResult } from '../types/ai';
 import { fetchParentMessage } from '../services/aiService';
@@ -39,6 +42,8 @@ interface AIParentMessageModalProps {
   morningDuties?: MorningDutyRecord[];
   afternoonSessions?: AfternoonRecord[];
   initialStudentId?: string | null;
+  currentRole?: UserRoleType;
+  currentAccount?: UserAccount;
 }
 
 export const AIParentMessageModal: React.FC<AIParentMessageModalProps> = ({
@@ -51,7 +56,10 @@ export const AIParentMessageModal: React.FC<AIParentMessageModalProps> = ({
   morningDuties = [],
   afternoonSessions = [],
   initialStudentId,
+  currentRole = 'gvcn',
+  currentAccount,
 }) => {
+  const isGVCN = currentRole === 'gvcn' || currentAccount?.role === 'gvcn';
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [tone, setTone] = useState<AIMessageTone>('encouraging');
   const [isLoading, setIsLoading] = useState(false);
@@ -243,6 +251,30 @@ export const AIParentMessageModal: React.FC<AIParentMessageModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  if (!isGVCN) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs font-['Be_Vietnam_Pro',sans-serif]">
+        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 text-center animate-in fade-in zoom-in-95">
+          <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-2xs">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 mb-1.5">
+            Quyền Truy Cập Bị Giới Hạn
+          </h3>
+          <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+            Tính năng <strong>Soạn Tin Nhắn Phụ Huynh Bằng AI</strong> chỉ dành riêng cho tài khoản <strong>Giáo viên Chủ nhiệm</strong> (Cô Nguyễn Thị Thuỳ Trang). Các tài khoản khác không có quyền truy cập để đảm bảo tính bảo mật.
+          </p>
+          <button
+            onClick={onClose}
+            className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+          >
+            Đã hiểu & Đóng lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const currentIndex = students.findIndex((s) => s.id === selectedStudentId);
 

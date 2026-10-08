@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   Filter,
@@ -14,6 +14,11 @@ import {
   SlidersHorizontal,
   ShieldAlert,
   MessageSquare,
+  History,
+  RotateCcw,
+  Flag,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Student,
@@ -22,6 +27,8 @@ import {
   ScoreClassification,
   UserRoleType,
   UserAccount,
+  ScoreAdjustmentLog,
+  WeekInfo,
 } from '../types/discipline';
 import { CRITERIA_LIST, getClassificationColor } from '../utils/scoring';
 import {
@@ -30,12 +37,16 @@ import {
   canEditCriterion,
   getRolePermissionBadge,
 } from '../utils/permissions';
-import { Lock, ShieldCheck } from 'lucide-react';
+import { ScoreAuditLogModal } from './ScoreAuditLogModal';
+import { AdjustScoreModal } from './AdjustScoreModal';
+import { loadAuditLogs, addAuditLog, saveAuditLogs } from '../utils/storage';
 
 interface WeeklyScoreTableProps {
   students: Student[];
   records: Record<string, StudentWeeklyRecord>;
   currentWeekName: string;
+  currentWeekId?: number;
+  weeks?: WeekInfo[];
   currentRole?: UserRoleType;
   assignedGroupIds?: number[];
   currentAccount?: UserAccount;
@@ -50,6 +61,8 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   students,
   records,
   currentWeekName,
+  currentWeekId = 4,
+  weeks = [],
   currentRole = 'gvcn',
   assignedGroupIds,
   currentAccount,
@@ -59,13 +72,34 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   onOpenAdjustScore,
   onOpenParentMessage,
 }) => {
+  const isGVCN = currentRole === 'gvcn' || currentAccount?.role === 'gvcn';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | 'ALL'>('ALL');
-  const [selectedClassFilter, setSelectedClassFilter] = useState<ScoreClassification | 'ALL'>('ALL');
+  const [selectedClassFilter, setSelectedClassFilter] = useState<ScoreClassification | 'ALL' | 'UNDER_50'>('ALL');
   const [activeCellEdit, setActiveCellEdit] = useState<{
     studentId: string;
     field: keyof StudentWeeklyRecord;
   } | null>(null);
+
+  // Pop-up Điều chỉnh & Sửa điểm toàn diện khi bấm cây bút hoặc nút sửa điểm
+  const [isAdjustScoreModalOpen, setIsAdjustScoreModalOpen] = useState(false);
+  const [selectedAdjustStudent, setSelectedAdjustStudent] = useState<Student | null>(null);
+
+  // Undo Stack state
+  const [undoStack, setUndoStack] = useState<{
+    studentId: string;
+    studentName: string;
+    field: keyof Omit<StudentWeeklyRecord, 'studentId' | 'note'>;
+    fieldLabel: string;
+    prevValue: number;
+    newValue: number;
+    timestamp: number;
+  }[]>([]);
+  const [undoToast, setUndoToast] = useState<string | null>(null);
+
+  // Modal Nhật ký chỉnh sửa (Audit Logs)
+  const [isAuditLogModalOpen, setIsAuditLogModalOpen] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<ScoreAdjustmentLog[]>(() => loadAuditLogs());
 
   // Khi đăng nhập tài khoản Nhóm trưởng: tự động lọc đúng nhóm của mình để chấm điểm
   useEffect(() => {
@@ -137,7 +171,9 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
     if (selectedGroupFilter !== 'ALL' && item.student.groupId !== selectedGroupFilter) {
       return false;
     }
-    if (selectedClassFilter !== 'ALL' && item.classification !== selectedClassFilter) {
+    if (selectedClassFilter === 'UNDER_50') {
+      if (item.finalScore >= 50) return false;
+    } else if (selectedClassFilter !== 'ALL' && item.classification !== selectedClassFilter) {
       return false;
     }
     if (
@@ -149,11 +185,15 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
     return true;
   });
 
-  // Thay đổi số lần trực tiếp
-  const handleCellDelta = (
+  // Số lượng học sinh có nguy cơ sa sút điểm < 50
+  const warningUnder50Count = calculatedList.filter((item) => item.finalScore < 50).length;
+
+  // Xử lý thay đổi giá trị ô điểm (qua click đúp hoặc tăng/giảm nút)
+  const handleCellChange = (
     studentId: string,
     field: keyof Omit<StudentWeeklyRecord, 'studentId' | 'note'>,
-    delta: number
+    newVal: number,
+    actionType: 'inline' | 'delta' = 'inline'
   ) => {
     const student = students.find((s) => s.id === studentId);
     if (!student) return;
@@ -162,8 +202,104 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
     if (!perm.allowed) return;
 
     const currentVal = Number(records[studentId]?.[field] || 0);
-    const newVal = Math.max(0, currentVal + delta);
+    if (currentVal === newVal) return;
+
+    const criterion = CRITERIA_LIST.find((c) => c.key === field);
+    const fieldLabel = criterion?.name || String(field);
+
+    // Ghi nhận vào Undo stack
+    setUndoStack((prev) => [
+      {
+        studentId,
+        studentName: student.name,
+        field,
+        fieldLabel,
+        prevValue: currentVal,
+        newValue: newVal,
+        timestamp: Date.now(),
+      },
+      ...prev.slice(0, 29),
+    ]);
+
+    // Cập nhật bản ghi học sinh
     onUpdateRecord(studentId, { [field]: newVal });
+
+    // Ghi nhận vào Nhật ký lịch sử sửa điểm (Audit Log)
+    const editorName =
+      currentAccount?.displayName || (isGVCN ? 'Cô Nguyễn Thị Thuỳ Trang' : 'Người dùng');
+    const editorRole =
+      currentAccount?.title || (isGVCN ? 'Giáo viên chủ nhiệm' : currentRole);
+    const pointsDelta = criterion ? (newVal - currentVal) * criterion.points : 0;
+
+    const logEntry = addAuditLog({
+      weekId: currentWeekId,
+      weekName: currentWeekName,
+      studentId: student.id,
+      studentName: student.name,
+      groupId: student.groupId,
+      criterionKey: String(field),
+      criterionLabel: `${fieldLabel} (${criterion?.points && criterion.points > 0 ? '+' : ''}${criterion?.points || 0}đ)`,
+      oldValue: currentVal,
+      newValue: newVal,
+      delta: pointsDelta,
+      reason: actionType === 'inline' ? 'Click đúp nhập sửa con số trực tiếp' : 'Tăng/giảm nhanh (+/-) trên ô điểm',
+      editorName,
+      editorRole,
+      editorAccountId: currentAccount?.id,
+    });
+
+    setAuditLogs((prev) => [logEntry, ...prev]);
+  };
+
+  // Thay đổi số lần tăng/giảm (+/-)
+  const handleCellDelta = (
+    studentId: string,
+    field: keyof Omit<StudentWeeklyRecord, 'studentId' | 'note'>,
+    delta: number
+  ) => {
+    const currentVal = Number(records[studentId]?.[field] || 0);
+    const newVal = Math.max(0, currentVal + delta);
+    handleCellChange(studentId, field, newVal, 'delta');
+  };
+
+  // Hoàn tác (Undo) thao tác sửa gần nhất
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const [lastAction, ...remainingStack] = undoStack;
+    setUndoStack(remainingStack);
+
+    // Khôi phục giá trị cũ
+    onUpdateRecord(lastAction.studentId, { [lastAction.field]: lastAction.prevValue });
+
+    const criterion = CRITERIA_LIST.find((c) => c.key === lastAction.field);
+    const editorName =
+      currentAccount?.displayName || (isGVCN ? 'Cô Nguyễn Thị Thuỳ Trang' : 'Người dùng');
+    const editorRole =
+      currentAccount?.title || (isGVCN ? 'Giáo viên chủ nhiệm' : currentRole);
+    const pointsDelta = criterion ? (lastAction.prevValue - lastAction.newValue) * criterion.points : 0;
+
+    const logEntry = addAuditLog({
+      weekId: currentWeekId,
+      weekName: currentWeekName,
+      studentId: lastAction.studentId,
+      studentName: lastAction.studentName,
+      groupId: 0,
+      criterionKey: String(lastAction.field),
+      criterionLabel: `${lastAction.fieldLabel} (Hoàn tác)`,
+      oldValue: lastAction.newValue,
+      newValue: lastAction.prevValue,
+      delta: pointsDelta,
+      reason: `Hoàn tác (Undo): Khôi phục ${lastAction.fieldLabel} (${lastAction.newValue} → ${lastAction.prevValue})`,
+      editorName,
+      editorRole,
+      editorAccountId: currentAccount?.id,
+    });
+
+    setAuditLogs((prev) => [logEntry, ...prev]);
+    setUndoToast(
+      `Đã hoàn tác: ${lastAction.fieldLabel} của ${lastAction.studentName} (${lastAction.newValue} → ${lastAction.prevValue})`
+    );
+    setTimeout(() => setUndoToast(null), 3000);
   };
 
   // Xuất file CSV tiếng Việt chuẩn
@@ -276,12 +412,30 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
-              Sổ Theo Dõi Thi Đua Nề Nếp Hàng Tuần
-            </h2>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+                Sổ Theo Dõi Thi Đua Nề Nếp Hàng Tuần
+              </h2>
+              {/* Huy hiệu cảnh báo sớm: Hiển thị ngay số học sinh sa sút < 50 điểm */}
+              {warningUnder50Count > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedClassFilter(
+                      selectedClassFilter === 'UNDER_50' ? 'ALL' : 'UNDER_50'
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 shadow-2xs animate-pulse cursor-pointer transition-colors"
+                  title="Nhấn để lọc xem ngay các học sinh có tổng điểm còn lại dưới 50 điểm"
+                >
+                  <Flag className="w-3 h-3 fill-rose-600 text-rose-600" />
+                  <span>{warningUnder50Count} học sinh sa sút &lt;50đ</span>
+                </button>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Áp dụng bảng điểm chuẩn quy định THCS · Bấm vào ô số để tăng/giảm nhanh vi phạm
+              Áp dụng bảng điểm chuẩn quy định THCS · Click đúp vào ô số để sửa trực tiếp hoặc bấm cây bút để sửa toàn bộ lỗi
             </p>
           </div>
 
@@ -335,42 +489,74 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
               })()}
             </div>
 
-            {/* Filter by Classification */}
+            {/* Filter by Classification & Early Warning */}
             <select
               value={selectedClassFilter}
               onChange={(e) =>
-                setSelectedClassFilter(e.target.value as ScoreClassification | 'ALL')
+                setSelectedClassFilter(e.target.value as ScoreClassification | 'ALL' | 'UNDER_50')
               }
               aria-label="Lọc theo xếp loại"
-              className="px-2.5 py-1.5 text-xs bg-slate-100 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              className="px-2.5 py-1.5 text-xs bg-slate-100 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer font-medium"
             >
               <option value="ALL">Mọi xếp loại</option>
+              {warningUnder50Count > 0 && (
+                <option value="UNDER_50" className="text-rose-700 font-bold">
+                  🚩 Cảnh báo: Điểm &lt; 50 ({warningUnder50Count})
+                </option>
+              )}
               <option value="Tốt">Tốt (90 - 100)</option>
               <option value="Khá">Khá (80 - 89)</option>
               <option value="Đạt">Đạt (70 - 79)</option>
               <option value="Chưa đạt">Chưa đạt (&lt; 70)</option>
             </select>
 
-            {/* Nút Điều Chỉnh Điểm Nhầm (Chức năng thông thường: màu xám trung tính) */}
-            {onOpenAdjustScore && (
-              <button
-                type="button"
-                onClick={() => onOpenAdjustScore()}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 border border-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
-                title="Điều chỉnh, tăng giảm hoặc xóa điểm cộng/trừ khi bị cho nhầm"
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
-                <span>Điều Chỉnh Điểm Nhầm</span>
-              </button>
-            )}
+            {/* Nút Điều Chỉnh Điểm Nhầm: Mở bảng pop-up sửa toàn diện */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedAdjustStudent(null);
+                setIsAdjustScoreModalOpen(true);
+                if (onOpenAdjustScore) onOpenAdjustScore();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 border border-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="Điều chỉnh, tăng giảm hoặc xóa điểm cộng/trừ khi bị cho nhầm cho từng học sinh"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
+              <span>Sửa Lỗi / Điều Chỉnh Điểm</span>
+            </button>
 
-            {/* Nút Soạn tin nhắn PHHS bằng AI (Thao tác trực tiếp dựa trên dữ liệu học sinh đang hiển thị: Chuẩn màu Vàng Hổ Phách & Huy hiệu AI Đỏ) */}
-            {onOpenParentMessage && (
+            {/* Nút Hoàn Tác (Undo) */}
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={undoStack.length === 0}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-colors ${
+                undoStack.length > 0
+                  ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 cursor-pointer'
+                  : 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60'
+              }`}
+              title={
+                undoStack.length > 0
+                  ? `Hoàn tác: Khôi phục ${undoStack[0].fieldLabel} của ${undoStack[0].studentName} (${undoStack[0].newValue} → ${undoStack[0].prevValue})`
+                  : 'Không có thao tác nào để hoàn tác'
+              }
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Hoàn tác</span>
+              {undoStack.length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                  {undoStack.length}
+                </span>
+              )}
+            </button>
+
+            {/* Nút Soạn tin nhắn PHHS bằng AI - PHÂN QUYỀN RBAC CHẶT CHẼ: CHỈ GIÁO VIÊN CHỦ NHIỆM MỚI THẤY & SỬ DỤNG ĐƯỢC */}
+            {isGVCN && onOpenParentMessage ? (
               <button
                 type="button"
                 onClick={() => onOpenParentMessage()}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 border border-amber-500/60 rounded-lg shadow-xs transition-all cursor-pointer hover:scale-[1.02]"
-                title="Tự động soạn tin nhắn Zalo hoặc email gửi phụ huynh bằng AI dựa trên bảng điểm tuần"
+                title="Tự động soạn tin nhắn Zalo hoặc email gửi phụ huynh bằng AI (Dành riêng cho Giáo viên Chủ nhiệm)"
               >
                 <Sparkles className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
                 <span>Soạn Tin PH</span>
@@ -378,12 +564,31 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                   AI
                 </span>
               </button>
-            )}
+            ) : null}
+
+            {/* Nút Lịch Sử Chỉnh Sửa / Nhật Ký ngay bên cạnh nút Xuất Excel */}
+            <button
+              type="button"
+              onClick={() => {
+                setAuditLogs(loadAuditLogs());
+                setIsAuditLogModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="Xem nhật ký lịch sử nhập và chỉnh sửa điểm nề nếp chi tiết (Thời gian, Người sửa, Lỗi vi phạm, Điểm cũ và mới)"
+            >
+              <History className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Lịch Sử Chỉnh Sửa</span>
+              {auditLogs.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700">
+                  {auditLogs.length}
+                </span>
+              )}
+            </button>
 
             {/* Export CSV button */}
             <button
               onClick={exportToCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-xs transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
               <span>Xuất Excel</span>
@@ -538,10 +743,16 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                 const rec = item.record;
                 const clsColor = getClassificationColor(item.classification);
 
+                const isUnder50 = item.finalScore < 50;
+
                 return (
                   <tr
                     key={item.student.id}
-                    className="hover:bg-indigo-50/30 transition-colors font-medium text-slate-800"
+                    className={`transition-colors font-medium text-slate-800 ${
+                      isUnder50
+                        ? 'bg-red-50/95 hover:bg-red-100/95 border-l-4 border-l-red-600 shadow-xs'
+                        : 'hover:bg-indigo-50/30'
+                    }`}
                   >
                     {/* STT */}
                     <td className="p-2 border-r border-slate-200 text-center font-mono text-slate-400 tabular-nums">
@@ -551,31 +762,41 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                     {/* Họ tên học sinh */}
                     <td className="p-2 border-r border-slate-200 whitespace-nowrap">
                       <div className="flex items-center justify-between gap-1">
-                        <div>
-                          <span className="font-semibold text-slate-900">{item.student.name}</span>
-                          <span className="ml-1.5 text-[10px] text-indigo-700 font-medium bg-indigo-50 px-1 py-0.5 rounded">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`font-semibold ${isUnder50 ? 'text-red-950 font-bold' : 'text-slate-900'}`}>{item.student.name}</span>
+                          <span className="text-[10px] text-indigo-700 font-medium bg-indigo-50 px-1 py-0.5 rounded">
                             N{item.student.groupId}
                           </span>
+                          {/* Cảnh báo sớm tự động: Gắn cờ đỏ và huy hiệu cảnh báo khi điểm < 50 */}
+                          {isUnder50 && (
+                            <span
+                              title={`🚩 Cảnh báo sớm: Học sinh ${item.student.name} có tổng điểm còn lại là ${item.finalScore}/100đ (< 50đ), sa sút nề nếp nghiêm trọng cần lưu ý chấn chỉnh!`}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black bg-red-600 text-white shadow-xs cursor-help animate-pulse shrink-0"
+                            >
+                              <Flag className="w-2.5 h-2.5 fill-white" />
+                              <span>&lt;50Đ</span>
+                            </span>
+                          )}
                         </div>
                         {canEditStudent(currentRole, item.student.groupId, assignedGroupIds) ? (
                           <div className="flex items-center gap-0.5">
+                            {/* Nút cây bút: Click mở pop-up sửa toàn bộ các lỗi vi phạm của học sinh này */}
                             <button
-                              onClick={() => onQuickRecordStudent(item.student)}
-                              title="Ghi nhận vi phạm/khen thưởng"
-                              className="text-slate-300 hover:text-indigo-600 p-0.5 rounded cursor-pointer"
+                              onClick={() => {
+                                setSelectedAdjustStudent(item.student);
+                                setIsAdjustScoreModalOpen(true);
+                                if (onOpenAdjustScore) {
+                                  onOpenAdjustScore(item.student);
+                                }
+                              }}
+                              title={`Click để mở bảng sửa toàn bộ lỗi vi phạm & điểm của ${item.student.name}`}
+                              className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/70 p-1 rounded cursor-pointer transition-colors"
                             >
-                              <Edit2 className="w-3 h-3" />
+                              <Edit2 className="w-3.5 h-3.5 text-indigo-600" />
                             </button>
-                            {onOpenAdjustScore && (
-                              <button
-                                onClick={() => onOpenAdjustScore(item.student)}
-                                title={`Điều chỉnh điểm khi cho nhầm cho ${item.student.name}`}
-                                className="text-slate-300 hover:text-amber-600 p-0.5 rounded cursor-pointer"
-                              >
-                                <SlidersHorizontal className="w-3 h-3 text-amber-500 hover:text-amber-600" />
-                              </button>
-                            )}
-                            {onOpenParentMessage && (
+
+                            {/* Nút Soạn tin PH bằng AI - PHÂN QUYỀN RBAC CHẶT CHẼ: CHỈ GIÁO VIÊN CHỦ NHIỆM MỚI THẤY & SỬ DỤNG ĐƯỢC */}
+                            {isGVCN && onOpenParentMessage && (
                               <button
                                 onClick={() => onOpenParentMessage(item.student)}
                                 title={`Soạn tin nhắn phụ huynh bằng AI cho ${item.student.name}`}
@@ -604,6 +825,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'diTre', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'diTre', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'diTre', val)}
                           />
                         </td>
                       );
@@ -620,6 +842,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'nghiCP', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'nghiCP', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'nghiCP', val)}
                           />
                         </td>
                       );
@@ -637,6 +860,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'nghiKP', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'nghiKP', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'nghiKP', val)}
                           />
                         </td>
                       );
@@ -654,6 +878,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'boTiet', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'boTiet', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'boTiet', val)}
                           />
                         </td>
                       );
@@ -670,6 +895,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'ktbKlbKsb', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'ktbKlbKsb', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'ktbKlbKsb', val)}
                           />
                         </td>
                       );
@@ -686,6 +912,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'khongDongPhuc2', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'khongDongPhuc2', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'khongDongPhuc2', val)}
                           />
                         </td>
                       );
@@ -773,6 +1000,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'matTratTu', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'matTratTu', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'matTratTu', val)}
                           />
                         </td>
                       );
@@ -789,6 +1017,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'khongThamGiaVS', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'khongThamGiaVS', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'khongThamGiaVS', val)}
                           />
                         </td>
                       );
@@ -806,6 +1035,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'noiTuc', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'noiTuc', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'noiTuc', val)}
                           />
                         </td>
                       );
@@ -822,6 +1052,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'xaRac', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'xaRac', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'xaRac', val)}
                           />
                         </td>
                       );
@@ -838,6 +1069,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'trucVSBan', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'trucVSBan', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'trucVSBan', val)}
                           />
                         </td>
                       );
@@ -855,6 +1087,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'huHongTS', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'huHongTS', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'huHongTS', val)}
                           />
                         </td>
                       );
@@ -872,6 +1105,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'voLeGV', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'voLeGV', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'voLeGV', val)}
                           />
                         </td>
                       );
@@ -889,6 +1123,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                             disabledReason={p.reason}
                             onIncrement={() => handleCellDelta(item.student.id, 'dungDienThoai', 1)}
                             onDecrement={() => handleCellDelta(item.student.id, 'dungDienThoai', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'dungDienThoai', val)}
                           />
                         </td>
                       );
@@ -911,7 +1146,11 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                     </td>
 
                     {/* Tổng điểm còn lại */}
-                    <td className="p-2 border-r border-slate-200 text-center font-mono font-bold text-slate-900 bg-indigo-50/40 tabular-nums text-sm">
+                    <td className={`p-2 border-r border-slate-200 text-center font-mono font-bold tabular-nums text-sm ${
+                      isUnder50
+                        ? 'text-red-700 bg-red-100/90 ring-1 ring-red-400 font-black'
+                        : 'text-slate-900 bg-indigo-50/40'
+                    }`}>
                       {item.finalScore}
                     </td>
 
@@ -949,15 +1188,65 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Toast thông báo Hoàn tác */}
+      {undoToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{undoToast}</span>
+        </div>
+      )}
+
+      {/* Pop-up Điều Chỉnh & Sửa Toàn Bộ Lỗi Vi Phạm Của Học Sinh */}
+      <AdjustScoreModal
+        isOpen={isAdjustScoreModalOpen}
+        onClose={() => {
+          setIsAdjustScoreModalOpen(false);
+          setSelectedAdjustStudent(null);
+        }}
+        students={students}
+        initialStudent={selectedAdjustStudent}
+        records={records}
+        currentRole={currentRole}
+        assignedGroupIds={assignedGroupIds}
+        currentAccount={currentAccount}
+        currentWeekId={currentWeekId}
+        currentWeekName={currentWeekName}
+        onSaveAdjustment={(studentId, updatedRecord) => {
+          onUpdateRecord(studentId, updatedRecord);
+          setAuditLogs(loadAuditLogs());
+        }}
+      />
+
+      {/* Modal Nhật Ký Chỉnh Sửa / Lịch Sử Chỉnh Sửa */}
+      <ScoreAuditLogModal
+        isOpen={isAuditLogModalOpen}
+        onClose={() => setIsAuditLogModalOpen(false)}
+        logs={auditLogs}
+        currentRole={currentRole}
+        currentWeekId={currentWeekId}
+        weeks={weeks}
+        students={students}
+        onClearLogs={() => {
+          saveAuditLogs([]);
+          setAuditLogs([]);
+        }}
+        onDeleteLog={(logId) => {
+          const next = auditLogs.filter((l) => l.id !== logId);
+          saveAuditLogs(next);
+          setAuditLogs(next);
+        }}
+      />
     </div>
   );
 };
 
-// Ô tương tác số lần vi phạm với hover tăng/giảm nhanh
+// Ô tương tác số lần vi phạm với hover tăng/giảm nhanh & click đúp sửa số trực tiếp
 interface NumberCellProps {
   value: number;
   onIncrement: () => void;
   onDecrement: () => void;
+  onUpdateValue?: (newVal: number) => void;
   isDanger?: boolean;
   disabled?: boolean;
   disabledReason?: string;
@@ -967,15 +1256,74 @@ const NumberCell: React.FC<NumberCellProps> = ({
   value,
   onIncrement,
   onDecrement,
+  onUpdateValue,
   isDanger = false,
   disabled = false,
   disabledReason,
 }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempVal, setTempVal] = useState(value.toString());
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTempVal(value.toString());
+  }, [value]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleCommit = () => {
+    setIsEditing(false);
+    if (!onUpdateValue) return;
+    const num = parseInt(tempVal, 10);
+    if (!isNaN(num) && num >= 0 && num !== value) {
+      onUpdateValue(num);
+    } else {
+      setTempVal(value.toString());
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleCommit();
+    } else if (e.key === 'Escape') {
+      setTempVal(value.toString());
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing && !disabled) {
+    return (
+      <div className="flex items-center justify-center min-w-[28px] h-7">
+        <input
+          ref={inputRef}
+          type="number"
+          min="0"
+          max="99"
+          value={tempVal}
+          onChange={(e) => setTempVal(e.target.value)}
+          onBlur={handleCommit}
+          onKeyDown={handleKeyDown}
+          className="w-10 h-6 text-center text-xs font-bold bg-white text-indigo-700 border-2 border-indigo-500 rounded shadow-xs focus:outline-none"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
-      title={disabled ? (disabledReason || 'Bạn không có quyền sửa ô này') : undefined}
-      className={`group relative flex items-center justify-center min-w-[28px] h-7 ${
-        disabled ? 'cursor-not-allowed opacity-50 bg-slate-50/50' : 'cursor-pointer hover:bg-slate-100/60'
+      title={disabled ? (disabledReason || 'Bạn không có quyền sửa ô này') : 'Nhấp đúp (Double click) để sửa số trực tiếp, hoặc dùng nút +/- khi rê chuột'}
+      onDoubleClick={() => {
+        if (!disabled && onUpdateValue) {
+          setIsEditing(true);
+        }
+      }}
+      className={`group relative flex items-center justify-center min-w-[28px] h-7 select-none ${
+        disabled ? 'cursor-not-allowed opacity-50 bg-slate-50/50' : 'cursor-pointer hover:bg-indigo-50/60'
       }`}
     >
       <span
@@ -990,7 +1338,7 @@ const NumberCell: React.FC<NumberCellProps> = ({
         {value > 0 ? value : '-'}
       </span>
 
-      {/* Quick +/- hover controls: chỉ hiện khi có quyền chỉnh sửa */}
+      {/* Quick +/- hover controls */}
       {!disabled && (
         <div className="hidden group-hover:flex items-center gap-0.5 absolute -top-2 bg-slate-900 text-white rounded shadow-md z-20 px-1 py-0.5 text-[10px]">
           {value > 0 && (
@@ -1014,6 +1362,16 @@ const NumberCell: React.FC<NumberCellProps> = ({
             title="Tăng 1 lần vi phạm"
           >
             <Plus className="w-2.5 h-2.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+            }}
+            className="hover:text-amber-300 p-0.5 cursor-pointer text-[9px] border-l border-slate-700 pl-1 ml-0.5"
+            title="Nhập con số trực tiếp"
+          >
+            ✎
           </button>
         </div>
       )}

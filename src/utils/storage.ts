@@ -8,6 +8,7 @@ import {
   UserRoleType,
   WeeklyRemarksStore,
   UserAccount,
+  ScoreAdjustmentLog,
 } from '../types/discipline';
 import {
   INITIAL_METADATA,
@@ -32,6 +33,7 @@ const STORAGE_KEYS = {
   WEEKLY_REMARKS: 'cn_nene_weekly_remarks_v1',
   ACCOUNTS: 'cn_nene_accounts_v1',
   CURRENT_ACCOUNT_ID: 'cn_nene_current_acc_id_v1',
+  AUDIT_LOGS: 'cn_nene_audit_logs_v1',
 };
 
 export interface AppState {
@@ -210,4 +212,38 @@ export function exportBackupJSON(state: AppState): void {
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
+}
+
+// ============================================================================
+// QUẢN LÝ NHẬT KÝ CHỈNH SỬA ĐIỂM (AUDIT LOGS)
+// ============================================================================
+export function loadAuditLogs(): ScoreAdjustmentLog[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveAuditLogs(logs: ScoreAdjustmentLog[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs.slice(0, 500)));
+  } catch (err) {
+    console.error('Không thể lưu nhật ký sửa điểm:', err);
+  }
+}
+
+export function addAuditLog(entry: Omit<ScoreAdjustmentLog, 'id' | 'timestamp'>): ScoreAdjustmentLog {
+  const newLog: ScoreAdjustmentLog = {
+    ...entry,
+    id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    timestamp: new Date().toISOString(),
+  };
+  const currentLogs = loadAuditLogs();
+  const updatedLogs = [newLog, ...currentLogs];
+  saveAuditLogs(updatedLogs);
+  return newLog;
 }
