@@ -43,7 +43,6 @@ interface HeaderProps {
   onOpenThemeModal?: () => void;
   onOpenAuthModal?: () => void;
   onOpenImportRoster?: () => void;
-  onOpenParentMessage?: (student?: Student) => void;
   onOpenEarlyWarning?: () => void;
   onToggleChatAssistant?: () => void;
   onLogout?: () => void;
@@ -67,7 +66,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenThemeModal,
   onOpenAuthModal,
   onOpenImportRoster,
-  onOpenParentMessage,
   onOpenEarlyWarning,
   onToggleChatAssistant,
   onLogout,
@@ -420,28 +418,19 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Dải phân cách */}
           <div className="h-5 w-px bg-blue-400/30 mx-1 shrink-0 hidden sm:block" />
 
-          {/* 3 Nút Tính năng AI cốt lõi */}
-          {onOpenParentMessage && (
-            <button
-              type="button"
-              onClick={() => onOpenParentMessage()}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl bg-amber-400 hover:bg-amber-300 text-blue-950 font-black whitespace-nowrap transition-all shadow-xs cursor-pointer hover:scale-[1.02]"
-              title="Dùng AI tự động soạn tin nhắn hoặc email nhận xét định kỳ gửi phụ huynh"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-blue-900 animate-pulse" />
-              <span>Soạn tin PH (AI)</span>
-            </button>
-          )}
-
+          {/* Các tính năng AI chung cho toàn lớp (Đồng bộ chuẩn màu Vàng Hổ Phách & Huy hiệu AI Đỏ) */}
           {onOpenEarlyWarning && (
             <button
               type="button"
               onClick={onOpenEarlyWarning}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl bg-rose-500/90 hover:bg-rose-500 text-white font-bold whitespace-nowrap transition-all border border-rose-300/40 shadow-xs cursor-pointer hover:scale-[1.02]"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-slate-950 font-bold whitespace-nowrap transition-all border border-amber-500/60 shadow-xs cursor-pointer hover:scale-[1.02]"
               title="AI phân tích biểu đồ điểm số để đưa ra cảnh báo sớm học sinh sa sút"
             >
-              <ShieldAlert className="w-3.5 h-3.5 text-rose-200" />
-              <span>Cảnh báo sớm AI</span>
+              <ShieldAlert className="w-3.5 h-3.5 text-slate-950" />
+              <span>Cảnh báo sớm</span>
+              <span className="bg-red-600 text-white text-[9px] px-1 py-0.2 rounded font-black tracking-wider leading-none shadow-xs">
+                AI
+              </span>
             </button>
           )}
 
@@ -449,11 +438,14 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onToggleChatAssistant}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl bg-blue-950/80 hover:bg-blue-900 text-blue-100 border border-blue-400/40 font-bold whitespace-nowrap transition-all shadow-xs cursor-pointer hover:scale-[1.02]"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-slate-950 font-bold whitespace-nowrap transition-all border border-amber-500/60 shadow-xs cursor-pointer hover:scale-[1.02]"
               title="Khung chat nhỏ tra cứu nhanh: Hôm nay ai trực nhật? Điểm TB lớp..."
             >
-              <Bot className="w-3.5 h-3.5 text-amber-300" />
+              <Bot className="w-3.5 h-3.5 text-slate-950" />
               <span>Trợ lý hỏi nhanh</span>
+              <span className="bg-red-600 text-white text-[9px] px-1 py-0.2 rounded font-black tracking-wider leading-none shadow-xs">
+                AI
+              </span>
             </button>
           )}
         </div>

@@ -754,7 +754,6 @@ export default function App() {
         onOpenSettings={() => setIsClassSettingsOpen(true)}
         onOpenPrint={() => setIsPrintOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onOpenParentMessage={handleOpenParentMessage}
         onOpenEarlyWarning={handleOpenEarlyWarning}
         onToggleChatAssistant={handleToggleChatAssistant}
         onLogout={handleLogout}
@@ -796,7 +795,6 @@ export default function App() {
             onUpdateRecord={handleUpdateRecord}
             onQuickRecordStudent={handleSelectStudentForQuickEntry}
             onOpenParentMessage={handleOpenParentMessage}
-            onOpenEarlyWarning={handleOpenEarlyWarning}
           />
         )}
 
@@ -834,8 +832,6 @@ export default function App() {
             currentWeek={currentWeek}
             metadata={metadata}
             onOpenPrint={() => setIsPrintOpen(true)}
-            onOpenParentMessage={handleOpenParentMessage}
-            onOpenEarlyWarning={handleOpenEarlyWarning}
           />
         )}
       </main>

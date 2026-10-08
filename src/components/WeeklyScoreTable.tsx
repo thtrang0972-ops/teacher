@@ -44,7 +44,6 @@ interface WeeklyScoreTableProps {
   onOpenQuickEntry?: () => void;
   onOpenAdjustScore?: (student?: Student) => void;
   onOpenParentMessage?: (student?: Student) => void;
-  onOpenEarlyWarning?: () => void;
 }
 
 export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
@@ -59,7 +58,6 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   onOpenQuickEntry,
   onOpenAdjustScore,
   onOpenParentMessage,
-  onOpenEarlyWarning,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | 'ALL'>('ALL');
@@ -353,42 +351,32 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
               <option value="Chưa đạt">Chưa đạt (&lt; 70)</option>
             </select>
 
-            {/* Nút Điều Chỉnh Điểm Nhầm */}
+            {/* Nút Điều Chỉnh Điểm Nhầm (Chức năng thông thường: màu xám trung tính) */}
             {onOpenAdjustScore && (
               <button
                 type="button"
                 onClick={() => onOpenAdjustScore()}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 border border-amber-500/50 rounded-lg shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 border border-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
                 title="Điều chỉnh, tăng giảm hoặc xóa điểm cộng/trừ khi bị cho nhầm"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-950" />
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
                 <span>Điều Chỉnh Điểm Nhầm</span>
               </button>
             )}
 
-            {/* Nút Soạn tin nhắn PHHS bằng AI */}
+            {/* Nút Soạn tin nhắn PHHS bằng AI (Thao tác trực tiếp dựa trên dữ liệu học sinh đang hiển thị: Chuẩn màu Vàng Hổ Phách & Huy hiệu AI Đỏ) */}
             {onOpenParentMessage && (
               <button
                 type="button"
                 onClick={() => onOpenParentMessage()}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-xs transition-colors cursor-pointer"
-                title="Tự động soạn tin nhắn Zalo hoặc email gửi phụ huynh bằng AI"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 border border-amber-500/60 rounded-lg shadow-xs transition-all cursor-pointer hover:scale-[1.02]"
+                title="Tự động soạn tin nhắn Zalo hoặc email gửi phụ huynh bằng AI dựa trên bảng điểm tuần"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                <span>Soạn Tin PH (AI)</span>
-              </button>
-            )}
-
-            {/* Nút Cảnh báo sớm AI */}
-            {onOpenEarlyWarning && (
-              <button
-                type="button"
-                onClick={onOpenEarlyWarning}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg shadow-xs transition-colors cursor-pointer"
-                title="AI phân tích học sinh sa sút điểm số qua các tuần để cảnh báo sớm"
-              >
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                <span>Cảnh Báo Sớm AI</span>
+                <Sparkles className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
+                <span>Soạn Tin PH</span>
+                <span className="bg-red-600 text-white text-[9px] px-1 py-0.2 rounded font-black tracking-wider leading-none shadow-xs">
+                  AI
+                </span>
               </button>
             )}
 
@@ -591,9 +579,9 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                               <button
                                 onClick={() => onOpenParentMessage(item.student)}
                                 title={`Soạn tin nhắn phụ huynh bằng AI cho ${item.student.name}`}
-                                className="text-slate-300 hover:text-blue-600 p-0.5 rounded cursor-pointer"
+                                className="text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300/80 p-0.5 rounded cursor-pointer transition-colors shadow-2xs"
                               >
-                                <Sparkles className="w-3 h-3 text-blue-500 hover:text-blue-600" />
+                                <Sparkles className="w-3 h-3 text-amber-700" />
                               </button>
                             )}
                           </div>

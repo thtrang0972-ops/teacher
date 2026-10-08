@@ -42,8 +42,6 @@ interface ReportStatsViewProps {
   officerRemarks?: OfficerWeeklyRemarks;
   onOpenTeacherNotesModal?: () => void;
   onSaveTeacherGroupNotes?: (notes: Record<number, string>) => void;
-  onOpenParentMessage?: () => void;
-  onOpenEarlyWarning?: () => void;
 }
 
 export const ReportStatsView: React.FC<ReportStatsViewProps> = ({
@@ -58,8 +56,6 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({
   officerRemarks,
   onOpenTeacherNotesModal,
   onSaveTeacherGroupNotes,
-  onOpenParentMessage,
-  onOpenEarlyWarning,
 }) => {
   const [copied, setCopied] = useState(false);
   const [autoGenSuccess, setAutoGenSuccess] = useState<string | null>(null);
@@ -238,30 +234,6 @@ ${
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {onOpenParentMessage && (
-              <button
-                type="button"
-                onClick={onOpenParentMessage}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-blue-950 bg-amber-400 hover:bg-amber-300 rounded-lg shadow-xs transition-colors cursor-pointer"
-                title="Dùng AI soạn tin nhắn định kỳ gửi phụ huynh"
-              >
-                <Sparkles className="w-4 h-4 text-blue-900 animate-pulse" />
-                <span>Soạn Tin PH (AI)</span>
-              </button>
-            )}
-
-            {onOpenEarlyWarning && (
-              <button
-                type="button"
-                onClick={onOpenEarlyWarning}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition-colors cursor-pointer"
-                title="AI phân tích cảnh báo sớm học sinh sa sút qua nhiều tuần"
-              >
-                <ShieldAlert className="w-4 h-4 text-rose-200" />
-                <span>Cảnh Báo Sớm AI</span>
-              </button>
-            )}
-
             <button
               onClick={copyToClipboard}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"

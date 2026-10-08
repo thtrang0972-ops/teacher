@@ -190,21 +190,21 @@ export const AIChatAssistant: React.FC<AIChatAssistantProps> = ({
 
   return (
     <>
-      {/* Nút nổi (Floating Trigger) khi đóng */}
+      {/* Nút nổi (Floating Trigger) khi đóng - Đồng bộ chuẩn màu Vàng Hổ Phách & Huy hiệu AI Đỏ */}
       {!isOpen && (
         <button
           onClick={onToggle}
           type="button"
           aria-label="Mở Trợ lý tra cứu nhanh AI"
-          className="fixed bottom-5 right-5 z-40 group flex items-center gap-2.5 px-4 py-3 bg-linear-to-r from-blue-700 via-indigo-700 to-blue-800 hover:from-blue-800 hover:to-indigo-900 text-white rounded-full shadow-2xl border-2 border-white/60 hover:scale-105 active:scale-95 transition-all cursor-pointer font-['Be_Vietnam_Pro',sans-serif]"
+          className="fixed bottom-5 right-5 z-40 group flex items-center gap-2.5 px-4 py-3 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-slate-950 rounded-full shadow-2xl border-2 border-amber-500/70 hover:scale-105 active:scale-95 transition-all cursor-pointer font-['Be_Vietnam_Pro',sans-serif]"
         >
           <div className="relative">
-            <Sparkles className="w-5 h-5 text-amber-300 animate-spin" style={{ animationDuration: '6s' }} />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-blue-900"></span>
+            <Bot className="w-5 h-5 text-slate-950" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-amber-400"></span>
           </div>
-          <span className="text-xs sm:text-sm font-bold tracking-wide">Trợ lý AI Tra cứu</span>
-          <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-blue-950">
-            Hỏi nhanh
+          <span className="text-xs sm:text-sm font-black tracking-wide">Trợ lý Tra cứu</span>
+          <span className="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black tracking-wider leading-none shadow-xs">
+            AI
           </span>
         </button>
       )}
@@ -213,17 +213,20 @@ export const AIChatAssistant: React.FC<AIChatAssistantProps> = ({
       {isOpen && (
         <div className="fixed bottom-5 right-3 sm:right-5 z-40 w-[95vw] sm:w-[420px] h-[550px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-300/80 flex flex-col overflow-hidden font-['Be_Vietnam_Pro',sans-serif] animate-in slide-in-from-bottom-5 duration-200">
           {/* Header Chat */}
-          <div className="px-4 py-3 bg-linear-to-r from-blue-700 via-indigo-700 to-indigo-800 text-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="px-4 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0 shadow-xs border-b border-slate-800">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-amber-300">
-                <Sparkles className="w-4 h-4 animate-pulse" />
+              <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-xs">
+                <Bot className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold flex items-center gap-1.5">
-                  Trợ Lý Tra Cứu Nhanh AI
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <h3 className="text-sm font-bold flex items-center gap-1.5 text-white">
+                  Trợ Lý Tra Cứu Nhanh
+                  <span className="bg-red-600 text-white text-[9px] px-1 py-0.2 rounded font-black tracking-wider leading-none">
+                    AI
+                  </span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5"></span>
                 </h3>
-                <p className="text-[11px] text-blue-100">
+                <p className="text-[11px] text-slate-400">
                   Lớp {metadata.className || '9A3'} • {currentWeek.name}
                 </p>
               </div>
