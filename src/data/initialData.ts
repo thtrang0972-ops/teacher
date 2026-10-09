@@ -15,19 +15,12 @@ export const INITIAL_METADATA: ClassMetadata = {
   grade: 9,
   semester: 1,
   homeroomTeacher: 'Cô Nguyễn Thị Thuỳ Trang',
-  monitorName: 'Trần Gia Hưng',
-  academicViceMonitorName: 'Nguyễn Thảo Linh',
-  laborViceMonitorName: 'Bùi Quang Khải',
-  disciplineViceMonitorName: 'Lê Hoàng Yến Nhi',
-  groupLeaders: {
-    1: 'Nguyễn Văn An',
-    2: 'Đặng Ngọc Mai',
-    3: 'Ngô Hồng Phúc',
-    4: 'Phạm Thanh Tùng',
-    5: 'Hoàng Kim Cúc',
-    6: 'Đào Thu Hiền',
-  },
-  viceMonitorName: 'Lê Hoàng Yến Nhi',
+  monitorName: '',
+  academicViceMonitorName: '',
+  laborViceMonitorName: '',
+  disciplineViceMonitorName: '',
+  groupLeaders: {},
+  viceMonitorName: '',
   academicYear: '2026 - 2027',
 };
 
@@ -52,121 +45,11 @@ export const INITIAL_WEEKS: WeekInfo[] = [
   { id: 18, name: 'Tuần 18 (Sơ kết HKI)', startDate: '2027-01-04', endDate: '2027-01-10', semester: 1, schoolYear: '2026 - 2027' },
 ];
 
-// Danh sách 43 học sinh chia đều cho 6 nhóm (Nhóm 1->5: 7 bạn, Nhóm 6: 8 bạn)
-export const INITIAL_STUDENTS: Student[] = [
-  // NHÓM 1 (7 học sinh)
-  { id: 'hs-1', stt: 1, name: 'Nguyễn Văn An', gender: 'Nam', groupId: 1, isLeader: true, role: 'Nhóm trưởng 1' },
-  { id: 'hs-2', stt: 2, name: 'Trần Bảo Anh', gender: 'Nữ', groupId: 1, role: 'Cờ đỏ' },
-  { id: 'hs-3', stt: 3, name: 'Lê Minh Châu', gender: 'Nam', groupId: 1 },
-  { id: 'hs-4', stt: 4, name: 'Phạm Đức Dũng', gender: 'Nam', groupId: 1 },
-  { id: 'hs-5', stt: 5, name: 'Hoàng Thị Giang', gender: 'Nữ', groupId: 1 },
-  { id: 'hs-6', stt: 6, name: 'Vũ Quốc Huy', gender: 'Nam', groupId: 1 },
-  { id: 'hs-7', stt: 7, name: 'Đặng Tuấn Khang', gender: 'Nam', groupId: 1 },
+// Danh sách học sinh: ban đầu rỗng, chỉ nhập đúng theo danh sách tải lên
+export const INITIAL_STUDENTS: Student[] = [];
 
-  // NHÓM 2 (7 học sinh)
-  { id: 'hs-8', stt: 8, name: 'Trần Gia Hưng', gender: 'Nam', groupId: 2, role: 'Lớp trưởng' },
-  { id: 'hs-9', stt: 9, name: 'Nguyễn Thảo Linh', gender: 'Nữ', groupId: 2, role: 'Lớp phó Học tập' },
-  { id: 'hs-10', stt: 10, name: 'Bùi Quang Khải', gender: 'Nam', groupId: 2, role: 'Lớp phó Lao động' },
-  { id: 'hs-11', stt: 11, name: 'Đặng Ngọc Mai', gender: 'Nữ', groupId: 2, isLeader: true, role: 'Nhóm trưởng 2' },
-  { id: 'hs-12', stt: 12, name: 'Phan Tuấn Nam', gender: 'Nam', groupId: 2 },
-  { id: 'hs-13', stt: 13, name: 'Đỗ Phương Oanh', gender: 'Nữ', groupId: 2 },
-  { id: 'hs-14', stt: 14, name: 'Vũ Đức Phát', gender: 'Nam', groupId: 2 },
-
-  // NHÓM 3 (7 học sinh)
-  { id: 'hs-15', stt: 15, name: 'Lê Hoàng Yến Nhi', gender: 'Nữ', groupId: 3, role: 'Lớp phó Trật tự' },
-  { id: 'hs-16', stt: 16, name: 'Ngô Hồng Phúc', gender: 'Nam', groupId: 3, isLeader: true, role: 'Nhóm trưởng 3' },
-  { id: 'hs-17', stt: 17, name: 'Dương Khánh Quỳnh', gender: 'Nữ', groupId: 3, role: 'Cờ đỏ' },
-  { id: 'hs-18', stt: 18, name: 'Đinh Thành Sơn', gender: 'Nam', groupId: 3 },
-  { id: 'hs-19', stt: 19, name: 'Tạ Minh Trang', gender: 'Nữ', groupId: 3 },
-  { id: 'hs-20', stt: 20, name: 'Lâm Tuấn Tú', gender: 'Nam', groupId: 3 },
-  { id: 'hs-21', stt: 21, name: 'Nguyễn Cẩm Vân', gender: 'Nữ', groupId: 3 },
-
-  // NHÓM 4 (7 học sinh)
-  { id: 'hs-22', stt: 22, name: 'Phạm Thanh Tùng', gender: 'Nam', groupId: 4, isLeader: true, role: 'Nhóm trưởng 4' },
-  { id: 'hs-23', stt: 23, name: 'Võ Tuyết Vân', gender: 'Nữ', groupId: 4 },
-  { id: 'hs-24', stt: 24, name: 'Trương Quốc Việt', gender: 'Nam', groupId: 4 },
-  { id: 'hs-25', stt: 25, name: 'Mai Như Ý', gender: 'Nữ', groupId: 4 },
-  { id: 'hs-26', stt: 26, name: 'Đoàn Nhật Ánh', gender: 'Nữ', groupId: 4 },
-  { id: 'hs-27', stt: 27, name: 'Nguyễn Đình Bách', gender: 'Nam', groupId: 4 },
-  { id: 'hs-28', stt: 28, name: 'Hoàng Bảo Châu', gender: 'Nữ', groupId: 4 },
-
-  // NHÓM 5 (7 học sinh)
-  { id: 'hs-29', stt: 29, name: 'Hoàng Kim Cúc', gender: 'Nữ', groupId: 5, isLeader: true, role: 'Nhóm trưởng 5' },
-  { id: 'hs-30', stt: 30, name: 'Lý Tiến Đạt', gender: 'Nam', groupId: 5 },
-  { id: 'hs-31', stt: 31, name: 'Hồ Mỹ Duyên', gender: 'Nữ', groupId: 5 },
-  { id: 'hs-32', stt: 32, name: 'Chu Hải Đăng', gender: 'Nam', groupId: 5 },
-  { id: 'hs-33', stt: 33, name: 'Nông Thu Hà', gender: 'Nữ', groupId: 5 },
-  { id: 'hs-34', stt: 34, name: 'Phùng Gia Hào', gender: 'Nam', groupId: 5 },
-  { id: 'hs-35', stt: 35, name: 'Lương Minh Khoa', gender: 'Nam', groupId: 5 },
-
-  // NHÓM 6 (8 học sinh)
-  { id: 'hs-36', stt: 36, name: 'Đào Thu Hiền', gender: 'Nữ', groupId: 6, isLeader: true, role: 'Nhóm trưởng 6' },
-  { id: 'hs-37', stt: 37, name: 'Vương Vĩnh Khang', gender: 'Nam', groupId: 6 },
-  { id: 'hs-38', stt: 38, name: 'Lưu Bích Loan', gender: 'Nữ', groupId: 6 },
-  { id: 'hs-39', stt: 39, name: 'Triệu Công Mạnh', gender: 'Nam', groupId: 6 },
-  { id: 'hs-40', stt: 40, name: 'Quách Thảo My', gender: 'Nữ', groupId: 6 },
-  { id: 'hs-41', stt: 41, name: 'Tô Hữu Nghĩa', gender: 'Nam', groupId: 6 },
-  { id: 'hs-42', stt: 42, name: 'Dương Gia Phong', gender: 'Nam', groupId: 6 },
-  { id: 'hs-43', stt: 43, name: 'Nguyễn Thùy Trâm', gender: 'Nữ', groupId: 6 },
-];
-
-// Dữ liệu mẫu tuần 4 (tuần hiện tại với vi phạm và điểm cộng phong phú theo ảnh)
-export const INITIAL_WEEK4_RECORDS: Record<string, StudentWeeklyRecord> = {
-  // Nhóm 1: Nhóm gương mẫu, điểm cao
-  'hs-1': { studentId: 'hs-1', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 2, phatBieu: 3, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Gương mẫu, tích cực điều hành nhóm' },
-  'hs-2': { studentId: 'hs-2', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-3': { studentId: 'hs-3', diTre: 1, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Đi trễ thứ 3 do hỏng xe đạp' },
-  'hs-4': { studentId: 'hs-4', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 1, khongDongPhuc2: 0, diemTot: 0, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Chưa làm bài tập Toán 15p' },
-  'hs-5': { studentId: 'hs-5', diTre: 0, nghiCP: 1, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 2, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Nghỉ ốm có phép thứ 5' },
-  'hs-6': { studentId: 'hs-6', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 1, diemTot: 0, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Quên khăn quàng 15p thứ 2' },
-  'hs-7': { studentId: 'hs-7', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-
-  // Nhóm 2: Nhóm thi đua rất sôi nổi
-  'hs-8': { studentId: 'hs-8', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 3, phatBieu: 4, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Lớp trưởng xuất sắc, đạt 10đ Hóa' },
-  'hs-9': { studentId: 'hs-9', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 2, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-10': { studentId: 'hs-10', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 1, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Nói chuyện riêng tiết Sinh' },
-  'hs-11': { studentId: 'hs-11', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 2, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-12': { studentId: 'hs-12', diTre: 1, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 0, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-13': { studentId: 'hs-13', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-14': { studentId: 'hs-14', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-
-  // Nhóm 3: Có lớp phó kỷ luật
-  'hs-15': { studentId: 'hs-15', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 3, phatBieu: 3, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Ghi chép nề nếp cẩn thận' },
-  'hs-16': { studentId: 'hs-16', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 1, khongDongPhuc2: 0, diemTot: 0, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-17': { studentId: 'hs-17', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-18': { studentId: 'hs-18', diTre: 1, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 1, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Đi trễ tiết thể dục trái buổi' },
-  'hs-19': { studentId: 'hs-19', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-20': { studentId: 'hs-20', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 1, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-21': { studentId: 'hs-21', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-
-  // Nhóm 4: Khá, có một vài lỗi vệ sinh
-  'hs-22': { studentId: 'hs-22', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-23': { studentId: 'hs-23', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 2, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-24': { studentId: 'hs-24', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 1, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Vắng trực nhật thứ 4' },
-  'hs-25': { studentId: 'hs-25', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-26': { studentId: 'hs-26', diTre: 1, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 0, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-27': { studentId: 'hs-27', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 1, khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 1, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Để rác trong hộc bàn' },
-  'hs-28': { studentId: 'hs-28', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-
-  // Nhóm 5: Có học sinh vi phạm học tập và nề nếp
-  'hs-29': { studentId: 'hs-29', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-30': { studentId: 'hs-30', diTre: 2, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 1, khongDongPhuc2: 1, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 1, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Đi trễ 2 lần, quên sách bài tập' },
-  'hs-31': { studentId: 'hs-31', diTre: 0, nghiCP: 1, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-32': { studentId: 'hs-32', diTre: 0, nghiCP: 0, nghiKP: 1, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Nghỉ học không phép chiều trái buổi' },
-  'hs-33': { studentId: 'hs-33', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 2, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-34': { studentId: 'hs-34', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 1, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Nói tục trong giờ giải lao' },
-  'hs-35': { studentId: 'hs-35', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-
-  // Nhóm 6: Cần chấn chỉnh thêm
-  'hs-36': { studentId: 'hs-36', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 2, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-37': { studentId: 'hs-37', diTre: 1, nghiCP: 0, nghiKP: 0, boTiet: 1, ktbKlbKsb: 1, khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 1, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Bỏ tiết 4 thứ 5 đi chơi đá cầu' },
-  'hs-38': { studentId: 'hs-38', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-39': { studentId: 'hs-39', diTre: 1, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 1, khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 1, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, note: 'Trực nhật bẩn bảng chưa lau' },
-  'hs-40': { studentId: 'hs-40', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-41': { studentId: 'hs-41', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 1, note: 'Bị nhắc nhở lén xem điện thoại (-10đ)' },
-  'hs-42': { studentId: 'hs-42', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 1, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-  'hs-43': { studentId: 'hs-43', diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0, khongDongPhuc2: 0, diemTot: 1, phatBieu: 2, khongDongPhuc5: 0, matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0, trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0 },
-};
+// Dữ liệu sổ nề nếp ban đầu rỗng, tự động điền khi có học sinh
+export const INITIAL_WEEK4_RECORDS: Record<string, StudentWeeklyRecord> = {};
 
 // Ghi nhận mẫu 15 phút đầu giờ Tuần 4
 export const INITIAL_MORNING_DUTY_RECORDS: MorningDutyRecord[] = [
@@ -413,7 +296,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'loptruong',
     password: '123',
     role: 'lopTruong',
-    displayName: 'Trần Gia Hưng',
+    displayName: 'Lớp trưởng (Chưa phân công)',
     title: 'Lớp trưởng',
     avatarIcon: '🎖️',
     description: 'Bao quát toàn lớp: được nhập mọi học sinh cả 6 nhóm, tổng hợp báo cáo tuần.',
@@ -423,7 +306,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'lophoc',
     password: '123',
     role: 'lopPhoHocTap',
-    displayName: 'Nguyễn Thảo Linh',
+    displayName: 'Lớp phó Học tập (Chưa phân công)',
     title: 'Lớp phó Học tập',
     avatarIcon: '📚',
     description: 'Chuyên trách học tập: KTB/KLB/KSB, điểm tốt (+2đ), phát biểu (+1đ), 15p truy bài.',
@@ -433,7 +316,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'loplaodong',
     password: '123',
     role: 'lopPhoLaoDong',
-    displayName: 'Bùi Quang Khải',
+    displayName: 'Lớp phó Lao động (Chưa phân công)',
     title: 'Lớp phó Lao động',
     avatarIcon: '🧹',
     description: 'Chuyên trách vệ sinh: trực nhật bẩn, xả rác, không tham gia VS, tài sản lớp.',
@@ -443,7 +326,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'loptrattu',
     password: '123',
     role: 'lopPhoTratTu',
-    displayName: 'Lê Hoàng Yến Nhi',
+    displayName: 'Lớp phó Trật tự (Chưa phân công)',
     title: 'Lớp phó Trật tự',
     avatarIcon: '🛡️',
     description: 'Chuyên trách kỷ luật: chuyên cần, đi trễ, đồng phục, mất trật tự, học trái buổi.',
@@ -453,7 +336,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'nhom1',
     password: '123',
     role: 'nhomTruong1',
-    displayName: 'Nguyễn Văn An',
+    displayName: 'Nhóm trưởng 1 (Chưa phân công)',
     title: 'Nhóm trưởng 1',
     avatarIcon: '🚩',
     assignedGroupIds: [1],
@@ -464,7 +347,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'nhom2',
     password: '123',
     role: 'nhomTruong2',
-    displayName: 'Đặng Ngọc Mai',
+    displayName: 'Nhóm trưởng 2 (Chưa phân công)',
     title: 'Nhóm trưởng 2',
     avatarIcon: '🚩',
     assignedGroupIds: [2],
@@ -475,7 +358,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'nhom3',
     password: '123',
     role: 'nhomTruong3',
-    displayName: 'Ngô Hồng Phúc',
+    displayName: 'Nhóm trưởng 3 (Chưa phân công)',
     title: 'Nhóm trưởng 3',
     avatarIcon: '🚩',
     assignedGroupIds: [3],
@@ -486,7 +369,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'nhom4',
     password: '123',
     role: 'nhomTruong4',
-    displayName: 'Phạm Thanh Tùng',
+    displayName: 'Nhóm trưởng 4 (Chưa phân công)',
     title: 'Nhóm trưởng 4',
     avatarIcon: '🚩',
     assignedGroupIds: [4],
@@ -497,7 +380,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'nhom5',
     password: '123',
     role: 'nhomTruong5',
-    displayName: 'Hoàng Kim Cúc',
+    displayName: 'Nhóm trưởng 5 (Chưa phân công)',
     title: 'Nhóm trưởng 5',
     avatarIcon: '🚩',
     assignedGroupIds: [5],
@@ -508,7 +391,7 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'nhom6',
     password: '123',
     role: 'nhomTruong6',
-    displayName: 'Đào Thu Hiền',
+    displayName: 'Nhóm trưởng 6 (Chưa phân công)',
     title: 'Nhóm trưởng 6',
     avatarIcon: '🚩',
     assignedGroupIds: [6],
