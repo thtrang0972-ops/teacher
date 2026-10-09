@@ -218,11 +218,15 @@ export default function App() {
         accounts.find((a) => a.role === currentUserRole);
 
   const handleLogout = () => {
-    setAppState((prev) => ({
-      ...(prev || resetToInitialData()),
-      currentUserRole: 'guest',
-      currentAccountId: '',
-    }));
+    setAppState((prev) => {
+      const next: AppState = {
+        ...(prev || resetToInitialData()),
+        currentUserRole: 'guest',
+        currentAccountId: '',
+      };
+      saveAppState(next);
+      return next;
+    });
   };
 
   // Lấy dữ liệu tuần hiện tại an toàn

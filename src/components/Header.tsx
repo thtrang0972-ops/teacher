@@ -19,6 +19,7 @@ import {
   ShieldAlert,
   MessageSquare,
   Bot,
+  LogOut,
 } from 'lucide-react';
 import { WeekInfo, ClassMetadata, UserAccount, Student } from '../types/discipline';
 import { ColorTheme } from '../types/theme';
@@ -369,7 +370,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenAuthModal}
                 className="flex items-center gap-2 px-3 py-1.5 bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl border border-white/25 transition-all cursor-pointer shadow-xs text-left shrink-0"
-                title={`Đang đăng nhập: ${currentAccount.displayName} (${currentAccount.title})`}
+                title={`Đang đăng nhập: ${currentAccount.displayName} (${currentAccount.title}) - Bấm để quản lý hoặc đổi tài khoản`}
               >
                 <span className="text-lg">{currentAccount.avatarIcon || '👤'}</span>
                 <div className="leading-tight">
@@ -383,6 +384,20 @@ export const Header: React.FC<HeaderProps> = ({
                     {currentAccount.title}
                   </p>
                 </div>
+              </button>
+            )}
+
+            {/* Nút Đăng xuất tất cả các tài khoản trên Header */}
+            {currentAccount && onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-600/90 hover:bg-red-700 active:bg-red-800 text-white rounded-xl font-bold text-xs shadow-sm border border-red-400/40 transition-all cursor-pointer hover:scale-[1.02] shrink-0"
+                title="Đăng xuất khỏi tất cả các tài khoản (quay về chế độ chỉ xem)"
+              >
+                <LogOut className="w-3.5 h-3.5 text-white" />
+                <span className="hidden xl:inline">Đăng xuất tất cả tài khoản</span>
+                <span className="xl:hidden">Đăng xuất</span>
               </button>
             )}
           </div>

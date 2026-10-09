@@ -288,16 +288,16 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             </button>
           )}
 
-          {/* Nút "Đăng Xuất" (Màu Đỏ / Hồng đậm - Red/Rose) */}
+          {/* Nút "Đăng Xuất Tất Cả Các Tài Khoản" */}
           {isLoggedIn && onLogout && (
             <button
               onClick={onLogout}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-700 border border-rose-300 rounded-xl font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
-              title="Đăng xuất tài khoản (quay về chế độ chỉ xem)"
+              title="Đăng xuất khỏi tất cả các tài khoản (quay về chế độ chỉ xem)"
             >
               <LogOut className="w-3.5 h-3.5 text-rose-600" />
-              <span className="hidden sm:inline">Đăng Xuất</span>
-              <span className="sm:hidden">Thoát</span>
+              <span className="hidden sm:inline">Đăng xuất tất cả các tài khoản</span>
+              <span className="sm:hidden">Đăng xuất tất cả</span>
             </button>
           )}
 
