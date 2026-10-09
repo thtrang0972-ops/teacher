@@ -13,6 +13,7 @@ import { RoleSwitcher } from './components/RoleSwitcher';
 import { RoleRemarksModal } from './components/RoleRemarksModal';
 import { ClassSettingsModal } from './components/ClassSettingsModal';
 import { AuthModal } from './components/AuthModal';
+import { QuickLoginModal } from './components/QuickLoginModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
 import { AdjustScoreModal } from './components/AdjustScoreModal';
 import { AIParentMessageModal } from './components/AIParentMessageModal';
@@ -66,8 +67,8 @@ async function resolveFirebaseUrl(): Promise<string> {
   return activeFirebaseUrl;
 }
 
-async function syncToCloud(stateToSync: AppState) {
-  if (isSyncingFromCloud || !stateToSync) return;
+async function syncToCloud(stateToSync: AppState, force: boolean = false) {
+  if ((isSyncingFromCloud && !force) || !stateToSync) return;
   try {
     const now = Date.now();
     lastSyncedTimestamp = now;
@@ -117,6 +118,7 @@ export default function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isRoleRemarksOpen, setIsRoleRemarksOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isQuickLoginOpen, setIsQuickLoginOpen] = useState(false);
   const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
 
   // AI Features state
@@ -157,19 +159,41 @@ export default function App() {
           const remote = cloudData.appData;
           setAppState((prev) => {
             const safePrev = prev || resetToInitialData();
+
+            const hasLegacyMock = Array.isArray(remote.students) && remote.students.some(
+              (s: any) => (s.id === 'hs-1' && s.name === 'Nguyễn Văn An') || s.name === 'Trần Bảo Anh' || s.name === 'Trần Gia Hưng'
+            );
+            let incomingStudents = safePrev.students || [];
+            if (!hasLegacyMock && Array.isArray(remote.students) && remote.students.length > 0) {
+              incomingStudents = remote.students;
+            } else if (hasLegacyMock) {
+              incomingStudents = safePrev.students.some(s => s.name === 'Nguyễn Văn An') ? [] : safePrev.students;
+            }
+
+            const incomingAccounts = Array.isArray(remote.accounts) ? remote.accounts : safePrev.accounts || [];
+            const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+              incomingStudents,
+              remote.metadata || safePrev.metadata,
+              incomingAccounts
+            );
+
             const merged: AppState = {
               ...safePrev,
-              metadata: remote.metadata || safePrev.metadata,
-              students: Array.isArray(remote.students) ? remote.students : safePrev.students || [],
+              metadata: syncedMetadata,
+              students: syncedStudents,
               weeks: Array.isArray(remote.weeks) ? remote.weeks : safePrev.weeks || [],
               currentWeekId: remote.currentWeekId ?? safePrev.currentWeekId,
-              accounts: Array.isArray(remote.accounts) ? remote.accounts : safePrev.accounts || [],
+              accounts: syncedAccounts,
               weeklyRecords: remote.weeklyRecords || safePrev.weeklyRecords || {},
               morningDutyRecords: Array.isArray(remote.morningDutyRecords) ? remote.morningDutyRecords : [],
               afternoonRecords: Array.isArray(remote.afternoonRecords) ? remote.afternoonRecords : [],
               weeklyRemarks: remote.weeklyRemarks || safePrev.weeklyRemarks || {},
             };
             saveAppState(merged);
+            if (hasLegacyMock) {
+              // Tự động làm sạch Firebase nếu đám mây còn tàn dư học sinh mẫu cũ
+              syncToCloud(merged, true);
+            }
             return merged;
           });
 
@@ -212,10 +236,10 @@ export default function App() {
 
   // Tài khoản đang đăng nhập
   const currentAccount =
-    currentUserRole === 'guest' || !currentAccountId
+    !currentAccountId && currentUserRole === 'guest'
       ? undefined
       : accounts.find((a) => a.id === currentAccountId) ||
-        accounts.find((a) => a.role === currentUserRole);
+        (currentUserRole !== 'guest' ? accounts.find((a) => a.role === currentUserRole) : undefined);
 
   const handleLogout = () => {
     setAppState((prev) => {
@@ -256,14 +280,62 @@ export default function App() {
     }));
   };
 
-  const handleLogin = (accountId: string) => {
+  const handleLogin = (accountId: string, studentUser?: Student) => {
+    // 1. Nếu có thông tin học sinh cụ thể (studentUser hoặc tìm thấy trong danh sách học sinh)
+    const matchedStudent =
+      studentUser ||
+      students.find((s) => s.id === accountId || `acc-${s.id}` === accountId);
+
+    if (matchedStudent) {
+      const studentAccId = `acc-${matchedStudent.id}`;
+      const role: UserRoleType = matchedStudent.isLeader
+        ? (`nhomTruong${matchedStudent.groupId}` as UserRoleType)
+        : 'hocSinh';
+
+      const studentAccount: UserAccount = {
+        id: studentAccId,
+        username: matchedStudent.stt ? matchedStudent.stt.toString() : matchedStudent.id,
+        password: '123',
+        role,
+        displayName: matchedStudent.name,
+        title: matchedStudent.role || (matchedStudent.isLeader ? `Nhóm trưởng ${matchedStudent.groupId}` : `Học sinh Nhóm ${matchedStudent.groupId}`),
+        avatarIcon: matchedStudent.isLeader ? '🚩' : '👤',
+        assignedGroupIds: [matchedStudent.groupId],
+        description: `Học sinh ${matchedStudent.name} - Nhóm ${matchedStudent.groupId}`,
+      };
+
+      setAppState((prev) => {
+        const safePrev = prev || resetToInitialData();
+        const existingAccounts = safePrev.accounts || [];
+        const updatedAccounts = existingAccounts.some((a) => a.id === studentAccId)
+          ? existingAccounts.map((a) => (a.id === studentAccId ? studentAccount : a))
+          : [...existingAccounts, studentAccount];
+
+        const next: AppState = {
+          ...safePrev,
+          accounts: updatedAccounts,
+          currentAccountId: studentAccId,
+          currentUserRole: role,
+        };
+        saveAppState(next);
+        return next;
+      });
+      return;
+    }
+
+    // 2. Tài khoản cán sự hoặc GVCN
     const matched = accounts.find((a) => a.id === accountId);
     if (matched) {
-      setAppState((prev) => ({
-        ...(prev || resetToInitialData()),
-        currentAccountId: matched.id,
-        currentUserRole: matched.role,
-      }));
+      setAppState((prev) => {
+        const next: AppState = {
+          ...(prev || resetToInitialData()),
+          currentAccountId: matched.id,
+          currentUserRole: matched.role,
+        };
+        saveAppState(next);
+        return next;
+      });
+      return;
     }
   };
 
@@ -632,10 +704,23 @@ export default function App() {
   const handleClearAllStudents = () => {
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
-      return {
+      const { syncedStudents, syncedMetadata, syncedAccounts } = syncRolesAndAccounts(
+        [],
+        safePrev.metadata,
+        safePrev.accounts || []
+      );
+      const nextState: AppState = {
         ...safePrev,
         students: [],
+        metadata: syncedMetadata,
+        accounts: syncedAccounts,
+        weeklyRecords: {},
+        morningDutyRecords: [],
+        afternoonRecords: [],
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -653,7 +738,7 @@ export default function App() {
       accounts: syncedAccounts,
     };
     setAppState(fullInitial);
-    syncToCloud(fullInitial);
+    syncToCloud(fullInitial, true);
   };
 
   const handleApplyNewRoster = (newStudents: Student[]) => {
@@ -680,13 +765,16 @@ export default function App() {
 
       newWeeklyRecords[safePrev.currentWeekId] = currentWeekRecs;
 
-      return {
+      const nextState: AppState = {
         ...safePrev,
         students: syncedStudents,
         metadata: syncedMetadata,
         accounts: syncedAccounts,
         weeklyRecords: newWeeklyRecords,
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -763,6 +851,7 @@ export default function App() {
         onOpenSettings={() => setIsClassSettingsOpen(true)}
         onOpenPrint={() => setIsPrintOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
         onOpenEarlyWarning={handleOpenEarlyWarning}
         onToggleChatAssistant={handleToggleChatAssistant}
         onLogout={handleLogout}
@@ -778,6 +867,7 @@ export default function App() {
         currentAccountId={currentAccountId}
         onOpenRoleRemarks={() => setIsRoleRemarksOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
         onOpenAccountManager={() => setIsAccountManagerOpen(true)}
         onLogout={handleLogout}
       />
@@ -788,6 +878,8 @@ export default function App() {
           <GroupCompetitionView
             groups={groups}
             currentWeekName={currentWeek.name}
+            currentRole={currentUserRole}
+            assignedGroupIds={currentAccount?.assignedGroupIds}
             onSelectStudent={handleSelectStudentForQuickEntry}
             onQuickRecordStudent={handleSelectStudentForQuickEntry}
             onOpenImportRoster={() => setIsImportModalOpen(true)}
@@ -925,10 +1017,31 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         accounts={accounts}
+        students={students}
         currentAccountId={currentAccountId}
         onLogin={handleLogin}
         onLogout={handleLogout}
+        onOpenQuickLogin={() => {
+          setIsAuthModalOpen(false);
+          setIsQuickLoginOpen(true);
+        }}
         onOpenAccountManager={() => setIsAccountManagerOpen(true)}
+      />
+
+      <QuickLoginModal
+        isOpen={isQuickLoginOpen}
+        onClose={() => setIsQuickLoginOpen(false)}
+        students={students}
+        accounts={accounts}
+        metadata={metadata}
+        currentAccountId={currentAccountId}
+        isLoggedIn={currentUserRole !== 'guest' && !!currentAccount}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+        onOpenFullAuthModal={() => {
+          setIsQuickLoginOpen(false);
+          setIsAuthModalOpen(true);
+        }}
       />
 
       <AccountManagerModal

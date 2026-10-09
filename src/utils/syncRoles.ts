@@ -36,6 +36,13 @@ export function syncRolesAndAccounts(
   }
   if (monitorStudent) {
     syncedMetadata.monitorName = monitorStudent.name;
+  } else {
+    const exists = syncedStudents.some(
+      (s) => s.name.trim().toLowerCase() === syncedMetadata.monitorName?.trim().toLowerCase()
+    );
+    if (!exists) {
+      syncedMetadata.monitorName = '';
+    }
   }
 
   // 1.2 Lớp phó Học tập
@@ -50,6 +57,13 @@ export function syncRolesAndAccounts(
   }
   if (academicStudent) {
     syncedMetadata.academicViceMonitorName = academicStudent.name;
+  } else {
+    const exists = syncedStudents.some(
+      (s) => s.name.trim().toLowerCase() === syncedMetadata.academicViceMonitorName?.trim().toLowerCase()
+    );
+    if (!exists) {
+      syncedMetadata.academicViceMonitorName = '';
+    }
   }
 
   // 1.3 Lớp phó Lao động
@@ -64,6 +78,13 @@ export function syncRolesAndAccounts(
   }
   if (laborStudent) {
     syncedMetadata.laborViceMonitorName = laborStudent.name;
+  } else {
+    const exists = syncedStudents.some(
+      (s) => s.name.trim().toLowerCase() === syncedMetadata.laborViceMonitorName?.trim().toLowerCase()
+    );
+    if (!exists) {
+      syncedMetadata.laborViceMonitorName = '';
+    }
   }
 
   // 1.4 Lớp phó Trật tự
@@ -80,6 +101,14 @@ export function syncRolesAndAccounts(
   if (disciplineStudent) {
     syncedMetadata.disciplineViceMonitorName = disciplineStudent.name;
     syncedMetadata.viceMonitorName = disciplineStudent.name;
+  } else {
+    const exists = syncedStudents.some(
+      (s) => s.name.trim().toLowerCase() === discName?.trim().toLowerCase()
+    );
+    if (!exists) {
+      syncedMetadata.disciplineViceMonitorName = '';
+      syncedMetadata.viceMonitorName = '';
+    }
   }
 
   // 2. Đồng bộ 6 Nhóm trưởng cho 6 nhóm (Nhóm 1 -> Nhóm 6)
@@ -146,24 +175,24 @@ export function syncRolesAndAccounts(
 
     switch (copy.role) {
       case 'gvcn':
-        copy.displayName = syncedMetadata.homeroomTeacher || copy.displayName;
+        copy.displayName = syncedMetadata.homeroomTeacher || 'Giáo viên Chủ nhiệm';
         copy.title = 'Giáo viên Chủ nhiệm';
         break;
 
       case 'lopTruong':
-        copy.displayName = syncedMetadata.monitorName || copy.displayName;
+        copy.displayName = syncedMetadata.monitorName || 'Lớp trưởng (Chưa phân công)';
         copy.title = 'Lớp trưởng';
         copy.assignedGroupIds = [1, 2, 3, 4, 5, 6];
         break;
 
       case 'lopPhoHocTap':
-        copy.displayName = syncedMetadata.academicViceMonitorName || copy.displayName;
+        copy.displayName = syncedMetadata.academicViceMonitorName || 'Lớp phó Học tập (Chưa phân công)';
         copy.title = 'Lớp phó Học tập';
         copy.assignedGroupIds = [1, 2, 3, 4, 5, 6];
         break;
 
       case 'lopPhoLaoDong':
-        copy.displayName = syncedMetadata.laborViceMonitorName || copy.displayName;
+        copy.displayName = syncedMetadata.laborViceMonitorName || 'Lớp phó Lao động (Chưa phân công)';
         copy.title = 'Lớp phó Lao động';
         copy.assignedGroupIds = [1, 2, 3, 4, 5, 6];
         break;
@@ -172,51 +201,51 @@ export function syncRolesAndAccounts(
         copy.displayName =
           syncedMetadata.disciplineViceMonitorName ||
           syncedMetadata.viceMonitorName ||
-          copy.displayName;
+          'Lớp phó Trật tự (Chưa phân công)';
         copy.title = 'Lớp phó Trật tự';
         copy.assignedGroupIds = [1, 2, 3, 4, 5, 6];
         break;
 
       case 'nhomTruong1':
-        copy.displayName = syncedMetadata.groupLeaders?.[1] || copy.displayName;
+        copy.displayName = syncedMetadata.groupLeaders?.[1] || 'Nhóm trưởng 1 (Chưa phân công)';
         copy.title = 'Nhóm trưởng 1';
         copy.assignedGroupIds = [1];
-        copy.description = `Nhóm trưởng 1: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 1 (${copy.displayName}).`;
+        copy.description = `Nhóm trưởng 1: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 1.`;
         break;
 
       case 'nhomTruong2':
-        copy.displayName = syncedMetadata.groupLeaders?.[2] || copy.displayName;
+        copy.displayName = syncedMetadata.groupLeaders?.[2] || 'Nhóm trưởng 2 (Chưa phân công)';
         copy.title = 'Nhóm trưởng 2';
         copy.assignedGroupIds = [2];
-        copy.description = `Nhóm trưởng 2: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 2 (${copy.displayName}).`;
+        copy.description = `Nhóm trưởng 2: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 2.`;
         break;
 
       case 'nhomTruong3':
-        copy.displayName = syncedMetadata.groupLeaders?.[3] || copy.displayName;
+        copy.displayName = syncedMetadata.groupLeaders?.[3] || 'Nhóm trưởng 3 (Chưa phân công)';
         copy.title = 'Nhóm trưởng 3';
         copy.assignedGroupIds = [3];
-        copy.description = `Nhóm trưởng 3: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 3 (${copy.displayName}).`;
+        copy.description = `Nhóm trưởng 3: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 3.`;
         break;
 
       case 'nhomTruong4':
-        copy.displayName = syncedMetadata.groupLeaders?.[4] || copy.displayName;
+        copy.displayName = syncedMetadata.groupLeaders?.[4] || 'Nhóm trưởng 4 (Chưa phân công)';
         copy.title = 'Nhóm trưởng 4';
         copy.assignedGroupIds = [4];
-        copy.description = `Nhóm trưởng 4: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 4 (${copy.displayName}).`;
+        copy.description = `Nhóm trưởng 4: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 4.`;
         break;
 
       case 'nhomTruong5':
-        copy.displayName = syncedMetadata.groupLeaders?.[5] || copy.displayName;
+        copy.displayName = syncedMetadata.groupLeaders?.[5] || 'Nhóm trưởng 5 (Chưa phân công)';
         copy.title = 'Nhóm trưởng 5';
         copy.assignedGroupIds = [5];
-        copy.description = `Nhóm trưởng 5: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 5 (${copy.displayName}).`;
+        copy.description = `Nhóm trưởng 5: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 5.`;
         break;
 
       case 'nhomTruong6':
-        copy.displayName = syncedMetadata.groupLeaders?.[6] || copy.displayName;
+        copy.displayName = syncedMetadata.groupLeaders?.[6] || 'Nhóm trưởng 6 (Chưa phân công)';
         copy.title = 'Nhóm trưởng 6';
         copy.assignedGroupIds = [6];
-        copy.description = `Nhóm trưởng 6: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 6 (${copy.displayName}).`;
+        copy.description = `Nhóm trưởng 6: Phụ trách theo dõi và chấm điểm các học sinh thuộc Nhóm 6.`;
         break;
 
       default:

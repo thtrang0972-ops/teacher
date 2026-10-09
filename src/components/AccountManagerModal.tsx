@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   KeyRound,
@@ -53,6 +53,19 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Bảo mật: Xác thực mật khẩu GVCN trước khi cho phép xem và quản lý
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [masterPasswordInput, setMasterPasswordInput] = useState('');
+  const [unlockError, setUnlockError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsUnlocked(false);
+      setMasterPasswordInput('');
+      setUnlockError('');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   // Quyền hạn: Chỉ GVCN được quản lý mật khẩu
@@ -73,6 +86,79 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
           >
             Đóng
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Khóa bảo mật: Yêu cầu mật khẩu GVCN để mở khóa
+  if (!isUnlocked) {
+    const handleVerify = (e: React.FormEvent) => {
+      e.preventDefault();
+      setUnlockError('');
+      const gvcnAccount = accounts.find((a) => a.role === 'gvcn');
+      const expectedPass = gvcnAccount?.password || '123';
+      if (masterPasswordInput.trim() === expectedPass) {
+        setIsUnlocked(true);
+        setMasterPasswordInput('');
+      } else {
+        setUnlockError('Mật khẩu Giáo viên chủ nhiệm không chính xác! Vui lòng thử lại.');
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-purple-100 text-purple-700 border border-purple-200 flex items-center justify-center mx-auto shadow-xs">
+            <Lock className="w-7 h-7" />
+          </div>
+          <div>
+            <h3 className="text-base font-black text-slate-900">
+              Khu Vực Bảo Mật Giáo Viên Chủ Nhiệm
+            </h3>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              Tài khoản và mật khẩu của lớp được bảo mật tuyệt đối. Học sinh khác không thể xem được. Vui lòng nhập mật khẩu tài khoản <strong>{metadata.homeroomTeacher || 'GVCN'}</strong> để mở khóa.
+            </p>
+          </div>
+
+          <form onSubmit={handleVerify} className="space-y-3 pt-2">
+            <div className="relative">
+              <input
+                type="password"
+                required
+                autoFocus
+                value={masterPasswordInput}
+                onChange={(e) => {
+                  setMasterPasswordInput(e.target.value);
+                  setUnlockError('');
+                }}
+                placeholder="Nhập mật khẩu GVCN để mở khóa..."
+                className="w-full text-center text-sm font-bold tracking-widest p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 transition-all shadow-inner"
+              />
+            </div>
+
+            {unlockError && (
+              <p className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">
+                {unlockError}
+              </p>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-2.5 px-4 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer"
+              >
+                Mở Khóa Quản Lý
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -194,7 +280,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-700">Tổng số: {accounts.length} tài khoản</span>
             <span className="text-slate-300">|</span>
-            <span className="text-[11px] text-slate-500">Mật khẩu mặc định: <code className="bg-slate-200 px-1 py-0.5 rounded font-bold text-slate-800">123</code></span>
+            <span className="text-[11px] text-purple-700 font-extrabold flex items-center gap-1">🔒 Bảo mật riêng tư: Chỉ GVCN quản lý</span>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -224,7 +310,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 shadow-2xs transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-              <span>Đặt lại mật khẩu mặc định (123)</span>
+              <span>Khôi phục mật khẩu ban đầu</span>
             </button>
           </div>
         </div>

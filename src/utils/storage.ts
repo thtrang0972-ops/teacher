@@ -69,7 +69,22 @@ export function loadAppState(): AppState {
       metadata.homeroomTeacher = 'Cô Nguyễn Thị Thuỳ Trang';
     }
 
-    const students: Student[] = rawStudents ? JSON.parse(rawStudents) : INITIAL_STUDENTS;
+    let students: Student[] = rawStudents ? JSON.parse(rawStudents) : INITIAL_STUDENTS;
+    
+    // Tự động xoá sạch danh sách học sinh mẫu cũ (Nguyễn Văn An, Trần Gia Hưng...) nếu còn lưu từ phiên trước
+    const hasLegacyMockStudents = Array.isArray(students) && students.some(
+      (s) => (s.id === 'hs-1' && s.name === 'Nguyễn Văn An') || (s.id === 'hs-8' && s.name === 'Trần Gia Hưng')
+    );
+    if (hasLegacyMockStudents) {
+      students = [];
+      metadata.monitorName = '';
+      metadata.academicViceMonitorName = '';
+      metadata.laborViceMonitorName = '';
+      metadata.disciplineViceMonitorName = '';
+      metadata.viceMonitorName = '';
+      metadata.groupLeaders = {};
+    }
+
     const weeks: WeekInfo[] = rawWeeks ? JSON.parse(rawWeeks) : INITIAL_WEEKS;
     const currentWeekId: number = rawWeekId ? JSON.parse(rawWeekId) : 4;
     const currentUserRole: UserRoleType = rawRole ? (rawRole as UserRoleType) : 'gvcn';
@@ -97,36 +112,10 @@ export function loadAppState(): AppState {
     });
     
     let weeklyRecords: Record<number, Record<string, StudentWeeklyRecord>> = {};
-    if (rawRecords) {
+    if (rawRecords && !hasLegacyMockStudents) {
       weeklyRecords = JSON.parse(rawRecords);
     } else {
-      // Seed tuần 4 mặc định
-      weeklyRecords[4] = INITIAL_WEEK4_RECORDS;
-      // Khởi tạo sơ bộ cho tuần 3 để so sánh
-      const week3Rec: Record<string, StudentWeeklyRecord> = {};
-      for (const s of INITIAL_STUDENTS) {
-        week3Rec[s.id] = {
-          studentId: s.id,
-          diTre: s.groupId === 5 ? 1 : 0,
-          nghiCP: 0,
-          nghiKP: 0,
-          boTiet: 0,
-          ktbKlbKsb: s.groupId === 6 ? 1 : 0,
-          khongDongPhuc2: 0,
-          diemTot: s.groupId <= 2 ? 2 : 1,
-          phatBieu: 2,
-          khongDongPhuc5: 0,
-          matTratTu: 0,
-          khongThamGiaVS: 0,
-          noiTuc: 0,
-          xaRac: 0,
-          trucVSBan: 0,
-          huHongTS: 0,
-          voLeGV: 0,
-          dungDienThoai: 0,
-        };
-      }
-      weeklyRecords[3] = week3Rec;
+      weeklyRecords = {};
     }
 
     const morningDutyRecords: MorningDutyRecord[] = rawMorning

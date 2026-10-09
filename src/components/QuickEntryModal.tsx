@@ -514,6 +514,18 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
               </div>
             </div>
 
+            {/* Cảnh báo không có quyền */}
+            {!isStudentAllowed && (
+              <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-900 font-bold flex items-center gap-2">
+                <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>
+                  {currentRole.startsWith("nhomTruong")
+                    ? "🔒 Bạn là Nhóm trưởng Nhóm " + allowedGroups.join(", ") + ". Theo phân quyền bạn chỉ được ghi nhận học sinh thuộc Nhóm " + allowedGroups.join(", ") + "!"
+                    : "🔒 Chế độ chỉ xem. Chỉ Ban cán sự lớp & 6 Nhóm trưởng mới có quyền ghi nhận nề nếp!"}
+                </span>
+              </div>
+            )}
+
             {/* Tóm tắt điểm thay đổi */}
             {currentCriterion && (
               <div

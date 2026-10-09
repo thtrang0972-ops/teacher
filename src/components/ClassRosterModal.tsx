@@ -440,7 +440,6 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
                       <div key={g} className="p-1.5 bg-white rounded-lg border border-sky-100">
                         <span className="text-[10px] text-sky-700 font-semibold block">🚩 Nhóm trưởng {g}</span>
                         <span className="font-bold text-slate-900 truncate block text-[11px]">{leaderName}</span>
-                        <span className="text-[9px] text-slate-400 block">TK: nhom{g}</span>
                       </div>
                     );
                   })}
@@ -597,10 +596,11 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleStartEditName(s)}
-                                className="text-slate-300 hover:text-indigo-600 p-0.5 rounded cursor-pointer transition-colors"
-                                title="Đổi tên học sinh (sẽ tự động đồng bộ chức vụ và tài khoản nếu có)"
+                                className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 cursor-pointer transition-colors shadow-2xs"
+                                title="Bị sai tên học sinh? Bấm vào đây để sửa lại tên"
                               >
-                                <Edit2 className="w-3 h-3" />
+                                <Edit2 className="w-2.5 h-2.5 text-indigo-600" />
+                                <span>Sửa tên</span>
                               </button>
                               {s.isLeader && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-200">

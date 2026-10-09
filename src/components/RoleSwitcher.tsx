@@ -14,6 +14,7 @@ import {
   LogOut,
   Settings2,
   History,
+  Zap,
 } from 'lucide-react';
 import { UserRoleType, ClassMetadata, Student, UserAccount } from '../types/discipline';
 import { getRolePermissionBadge } from '../utils/permissions';
@@ -27,6 +28,7 @@ interface RoleSwitcherProps {
   currentAccountId: string;
   onOpenRoleRemarks: () => void;
   onOpenAuthModal: () => void;
+  onOpenQuickLogin?: () => void;
   onOpenAccountManager: () => void;
   onOpenScoreAuditLog?: () => void;
   onLogout?: () => void;
@@ -46,15 +48,17 @@ export interface RoleInfo {
 }
 
 export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): RoleInfo[] {
-  // Tìm tên 6 nhóm trưởng từ cấu hình lớp hoặc danh sách học sinh
-  const getLeaderName = (groupId: number, fallback: string) => {
+  // Tìm tên 6 nhóm trưởng từ danh sách học sinh thực tế hoặc cấu hình lớp
+  const getLeaderName = (groupId: number) => {
     if (metadata.groupLeaders && metadata.groupLeaders[groupId]) {
       return metadata.groupLeaders[groupId];
     }
     const leader = students.find(
       (s) => s.groupId === groupId && s.isLeader && s.role !== 'Lớp trưởng' && !s.role?.includes('Lớp phó')
     );
-    return leader ? leader.name : fallback;
+    if (leader) return leader.name;
+    const firstMember = students.find((s) => s.groupId === groupId);
+    return firstMember ? firstMember.name : `Nhóm trưởng ${groupId} (Chưa có)`;
   };
 
   return [
@@ -62,7 +66,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'gvcn',
       title: 'Giáo viên Chủ nhiệm',
       shortTitle: 'GVCN',
-      assignee: metadata.homeroomTeacher,
+      assignee: metadata.homeroomTeacher || 'Cô Nguyễn Thị Thuỳ Trang',
       badgeColor: 'border-purple-300 text-purple-700 bg-purple-50',
       textColor: 'text-purple-700',
       bgColor: 'bg-purple-600',
@@ -74,7 +78,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'lopTruong',
       title: 'Lớp trưởng',
       shortTitle: 'Lớp trưởng',
-      assignee: metadata.monitorName,
+      assignee: metadata.monitorName || (students.find((s) => s.role === 'Lớp trưởng')?.name || 'Chưa chỉ định'),
       badgeColor: 'border-indigo-300 text-indigo-700 bg-indigo-50',
       textColor: 'text-indigo-700',
       bgColor: 'bg-indigo-600',
@@ -86,7 +90,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'lopPhoHocTap',
       title: 'Lớp phó Học tập',
       shortTitle: 'LP Học tập',
-      assignee: metadata.academicViceMonitorName || 'Nguyễn Thảo Linh',
+      assignee: metadata.academicViceMonitorName || (students.find((s) => s.role === 'Lớp phó Học tập')?.name || 'Chưa chỉ định'),
       badgeColor: 'border-blue-300 text-blue-700 bg-blue-50',
       textColor: 'text-blue-700',
       bgColor: 'bg-blue-600',
@@ -98,7 +102,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'lopPhoLaoDong',
       title: 'Lớp phó Lao động',
       shortTitle: 'LP Lao động',
-      assignee: metadata.laborViceMonitorName || 'Bùi Quang Khải',
+      assignee: metadata.laborViceMonitorName || (students.find((s) => s.role === 'Lớp phó Lao động')?.name || 'Chưa chỉ định'),
       badgeColor: 'border-emerald-300 text-emerald-700 bg-emerald-50',
       textColor: 'text-emerald-700',
       bgColor: 'bg-emerald-600',
@@ -110,7 +114,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'lopPhoTratTu',
       title: 'Lớp phó Trật tự',
       shortTitle: 'LP Trật tự',
-      assignee: metadata.disciplineViceMonitorName || metadata.viceMonitorName || 'Lê Hoàng Yến Nhi',
+      assignee: metadata.disciplineViceMonitorName || metadata.viceMonitorName || (students.find((s) => s.role === 'Lớp phó Trật tự')?.name || 'Chưa chỉ định'),
       badgeColor: 'border-amber-300 text-amber-700 bg-amber-50',
       textColor: 'text-amber-700',
       bgColor: 'bg-amber-600',
@@ -122,7 +126,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'nhomTruong1',
       title: 'Nhóm trưởng 1',
       shortTitle: 'Nhóm trưởng 1',
-      assignee: getLeaderName(1, 'Nguyễn Văn An'),
+      assignee: getLeaderName(1),
       badgeColor: 'border-sky-300 text-sky-700 bg-sky-50',
       textColor: 'text-sky-700',
       bgColor: 'bg-sky-600',
@@ -134,7 +138,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'nhomTruong2',
       title: 'Nhóm trưởng 2',
       shortTitle: 'Nhóm trưởng 2',
-      assignee: getLeaderName(2, 'Đặng Ngọc Mai'),
+      assignee: getLeaderName(2),
       badgeColor: 'border-sky-300 text-sky-700 bg-sky-50',
       textColor: 'text-sky-700',
       bgColor: 'bg-sky-600',
@@ -146,7 +150,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'nhomTruong3',
       title: 'Nhóm trưởng 3',
       shortTitle: 'Nhóm trưởng 3',
-      assignee: getLeaderName(3, 'Ngô Hồng Phúc'),
+      assignee: getLeaderName(3),
       badgeColor: 'border-sky-300 text-sky-700 bg-sky-50',
       textColor: 'text-sky-700',
       bgColor: 'bg-sky-600',
@@ -158,7 +162,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'nhomTruong4',
       title: 'Nhóm trưởng 4',
       shortTitle: 'Nhóm trưởng 4',
-      assignee: getLeaderName(4, 'Phạm Thanh Tùng'),
+      assignee: getLeaderName(4),
       badgeColor: 'border-sky-300 text-sky-700 bg-sky-50',
       textColor: 'text-sky-700',
       bgColor: 'bg-sky-600',
@@ -170,7 +174,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'nhomTruong5',
       title: 'Nhóm trưởng 5',
       shortTitle: 'Nhóm trưởng 5',
-      assignee: getLeaderName(5, 'Hoàng Kim Cúc'),
+      assignee: getLeaderName(5),
       badgeColor: 'border-sky-300 text-sky-700 bg-sky-50',
       textColor: 'text-sky-700',
       bgColor: 'bg-sky-600',
@@ -182,7 +186,7 @@ export function getRoleInfoList(metadata: ClassMetadata, students: Student[]): R
       id: 'nhomTruong6',
       title: 'Nhóm trưởng 6',
       shortTitle: 'Nhóm trưởng 6',
-      assignee: getLeaderName(6, 'Đào Thu Hiền'),
+      assignee: getLeaderName(6),
       badgeColor: 'border-sky-300 text-sky-700 bg-sky-50',
       textColor: 'text-sky-700',
       bgColor: 'bg-sky-600',
@@ -201,6 +205,7 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   currentAccountId,
   onOpenRoleRemarks,
   onOpenAuthModal,
+  onOpenQuickLogin,
   onOpenAccountManager,
   onOpenScoreAuditLog,
   onLogout,
@@ -267,24 +272,24 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
 
         {/* Nhóm thẻ/nút chức năng quản lý tài khoản & phân quyền */}
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          {/* Nút "Đổi Tài Khoản" (Màu Vàng / Cam - Yellow/Amber) hoặc Đăng nhập */}
+          {/* Nút "Đổi Tài Khoản" hoặc Đăng nhập */}
           {isLoggedIn ? (
             <button
-              onClick={onOpenAuthModal}
+              onClick={onOpenQuickLogin || onOpenAuthModal}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-slate-950 rounded-xl font-black transition-all cursor-pointer shadow-xs border border-amber-500/40 hover:scale-[1.02]"
-              title="Đổi sang tài khoản cán sự khác hoặc GVCN"
+              title="Đổi sang tài khoản cán sự khác, GVCN hoặc học sinh khác"
             >
               <KeyRound className="w-3.5 h-3.5 text-slate-950" />
               <span>Đổi Tài Khoản</span>
             </button>
           ) : (
             <button
-              onClick={onOpenAuthModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl font-black transition-all cursor-pointer shadow-xs border border-amber-500/40 hover:scale-[1.02]"
-              title="Đăng nhập tài khoản bằng tên đăng nhập và mật khẩu"
+              onClick={onOpenQuickLogin || onOpenAuthModal}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 rounded-xl font-black transition-all cursor-pointer shadow-sm border border-amber-300 hover:scale-[1.02]"
+              title="Đăng nhập vào hệ thống (Ban cán sự lớp, GVCN hoặc học sinh)"
             >
-              <KeyRound className="w-3.5 h-3.5 text-slate-950" />
-              <span>Đăng Nhập Tài Khoản</span>
+              <Zap className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
+              <span>Đăng Nhập Nhanh</span>
             </button>
           )}
 

@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Bot,
   LogOut,
+  Zap,
 } from 'lucide-react';
 import { WeekInfo, ClassMetadata, UserAccount, Student } from '../types/discipline';
 import { ColorTheme } from '../types/theme';
@@ -43,6 +44,7 @@ interface HeaderProps {
   onOpenPrint?: () => void;
   onOpenThemeModal?: () => void;
   onOpenAuthModal?: () => void;
+  onOpenQuickLogin?: () => void;
   onOpenImportRoster?: () => void;
   onOpenEarlyWarning?: () => void;
   onToggleChatAssistant?: () => void;
@@ -66,6 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPrint,
   onOpenThemeModal,
   onOpenAuthModal,
+  onOpenQuickLogin,
   onOpenImportRoster,
   onOpenEarlyWarning,
   onToggleChatAssistant,
@@ -363,6 +366,8 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Settings className="w-4 h-4" />
             </button>
+
+
 
             {/* Thẻ người dùng đăng nhập nổi bật trên Header */}
             {currentAccount && onOpenAuthModal && (

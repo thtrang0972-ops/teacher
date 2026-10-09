@@ -25,18 +25,24 @@ export const DISCIPLINE_CRITERIA_KEYS = [
 
 /**
  * Kiểm tra xem vai trò hiện tại có được phép chỉnh sửa học sinh thuộc nhóm nào
+ * Theo quy định:
+ * - Lớp trưởng: Bao quát toàn bộ 6 nhóm
+ * - 3 Lớp phó (Học tập, Lao động, Trật tự): Được quản lý học sinh toàn lớp theo chuyên môn
+ * - 6 Nhóm trưởng (Nhóm 1 -> 6): Nhóm nào thì phụ trách nhóm đó, không được can thiệp nhóm khác
+ * - Học sinh thông thường & Khách: Chế độ chỉ xem, tuyệt đối không được sửa
  */
 export function canEditStudent(
   role: UserRoleType,
   studentGroupId: number,
   assignedGroupIds?: number[]
 ): boolean {
-  if (role === 'guest') {
-    return false; // Chưa đăng nhập thì không được sửa
+  if (role === 'guest' || role === 'hocSinh') {
+    return false; // Học sinh & Khách: Chỉ xem
   }
 
+  // GVCN và Lớp trưởng bao quát toàn lớp cả 6 nhóm
   if (role === 'gvcn' || role === 'lopTruong') {
-    return true; // GVCN và Lớp trưởng bao quát toàn lớp
+    return true;
   }
 
   // 3 Lớp phó được quản lý học sinh toàn lớp nhưng giới hạn theo mặt chuyên trách
@@ -44,7 +50,7 @@ export function canEditStudent(
     return true;
   }
 
-  // 6 Nhóm trưởng: chỉ được nhập học sinh thuộc nhóm mình quản lý (nhóm nào chấm nhóm đó)
+  // 6 Nhóm trưởng: Nhóm nào thì phụ trách nhóm đó (nhóm nào chấm nhóm đó)
   if (role.startsWith('nhomTruong')) {
     if (assignedGroupIds && assignedGroupIds.length > 0) {
       return assignedGroupIds.includes(studentGroupId);
@@ -53,7 +59,7 @@ export function canEditStudent(
     return studentGroupId === defaultGroup;
   }
 
-  return true;
+  return false;
 }
 
 /**
@@ -63,35 +69,35 @@ export function canEditCriterion(
   role: UserRoleType,
   criterionKey: keyof Omit<StudentWeeklyRecord, 'studentId' | 'note'>
 ): boolean {
-  if (role === 'guest') {
+  if (role === 'guest' || role === 'hocSinh') {
     return false;
   }
 
   if (role === 'gvcn' || role === 'lopTruong') {
-    return true; // Toàn quyền hoặc bao quát
+    return true; // GVCN và Lớp trưởng bao quát mọi tiêu chí
   }
 
-  // Nhóm trưởng được chấm tất cả các tiêu chí cho học sinh nhóm mình
+  // Nhóm trưởng được chấm tất cả các tiêu chí cho học sinh thuộc nhóm mình phụ trách
   if (role.startsWith('nhomTruong')) {
     return true;
   }
 
-  // Lớp phó Học tập
+  // Lớp phó Học tập: chỉ mảng học tập
   if (role === 'lopPhoHocTap') {
     return (ACADEMIC_CRITERIA_KEYS as readonly string[]).includes(criterionKey);
   }
 
-  // Lớp phó Lao động
+  // Lớp phó Lao động: chỉ mảng lao động / vệ sinh
   if (role === 'lopPhoLaoDong') {
     return (LABOR_CRITERIA_KEYS as readonly string[]).includes(criterionKey);
   }
 
-  // Lớp phó Trật tự
+  // Lớp phó Trật tự: chỉ mảng kỷ luật / trật tự
   if (role === 'lopPhoTratTu') {
     return (DISCIPLINE_CRITERIA_KEYS as readonly string[]).includes(criterionKey);
   }
 
-  return true;
+  return false;
 }
 
 /**
@@ -103,24 +109,25 @@ export function checkCellPermission(
   criterionKey: keyof Omit<StudentWeeklyRecord, 'studentId' | 'note'>,
   assignedGroupIds?: number[]
 ): PermissionCheckResult {
-  // 1. Kiểm tra quyền học sinh / nhóm
-  if (role === 'guest') {
+  // 1. Kiểm tra quyền tài khoản
+  if (role === 'guest' || role === 'hocSinh') {
     return {
       allowed: false,
-      reason: 'Vui lòng đăng nhập tài khoản để chỉnh sửa nề nếp',
+      reason: 'Chế độ chỉ xem. Chỉ Ban cán sự lớp & Nhóm trưởng mới có quyền ghi nhận điểm',
     };
   }
 
+  // 2. Kiểm tra nhóm phụ trách (Nhóm nào thì phụ trách nhóm đó)
   const studentAllowed = canEditStudent(role, studentGroupId, assignedGroupIds);
   if (!studentAllowed) {
     const defaultGroup = assignedGroupIds?.join(', ') || role.replace('nhomTruong', '');
     return {
       allowed: false,
-      reason: `Tài khoản của bạn chỉ được phép nhập học sinh Nhóm ${defaultGroup}`,
+      reason: `Bạn là Nhóm trưởng Nhóm ${defaultGroup}. Theo phân quyền, bạn chỉ phụ trách học sinh thuộc Nhóm ${defaultGroup}`,
     };
   }
 
-  // 2. Kiểm tra quyền tiêu chí chuyên trách
+  // 3. Kiểm tra quyền tiêu chí chuyên trách
   const criterionAllowed = canEditCriterion(role, criterionKey);
   if (!criterionAllowed) {
     if (role === 'lopPhoHocTap') {
@@ -159,8 +166,8 @@ export function canRecordMorningDuty(
   studentGroupId: number,
   assignedGroupIds?: number[]
 ): PermissionCheckResult {
-  if (role === 'guest') {
-    return { allowed: false, reason: 'Vui lòng đăng nhập tài khoản để ghi nhận vi phạm' };
+  if (role === 'guest' || role === 'hocSinh') {
+    return { allowed: false, reason: 'Chế độ chỉ xem. Bạn không có quyền ghi nhận vi phạm' };
   }
 
   if (role === 'gvcn' || role === 'lopTruong') return { allowed: true };
@@ -169,9 +176,10 @@ export function canRecordMorningDuty(
   if (role.startsWith('nhomTruong')) {
     const isStudentOk = canEditStudent(role, studentGroupId, assignedGroupIds);
     if (!isStudentOk) {
+      const gNum = assignedGroupIds?.[0] || role.replace('nhomTruong', '');
       return {
         allowed: false,
-        reason: `Nhóm trưởng chỉ được ghi nhận học sinh Nhóm ${assignedGroupIds?.join(', ')}`,
+        reason: `Nhóm trưởng chỉ được ghi nhận học sinh Nhóm ${gNum}`,
       };
     }
     return { allowed: true };
@@ -211,7 +219,7 @@ export function canRecordMorningDuty(
     };
   }
 
-  return { allowed: true };
+  return { allowed: false, reason: 'Bạn không có quyền ghi nhận vi phạm' };
 }
 
 /**
@@ -222,10 +230,10 @@ export function canRecordAfternoon(
   studentGroupId: number,
   assignedGroupIds?: number[]
 ): PermissionCheckResult {
-  if (role === 'guest') {
+  if (role === 'guest' || role === 'hocSinh') {
     return {
       allowed: false,
-      reason: 'Vui lòng đăng nhập tài khoản để điểm danh học trái buổi',
+      reason: 'Chế độ chỉ xem. Bạn không có quyền điểm danh học trái buổi',
     };
   }
 
@@ -236,9 +244,10 @@ export function canRecordAfternoon(
   if (role.startsWith('nhomTruong')) {
     const isStudentOk = canEditStudent(role, studentGroupId, assignedGroupIds);
     if (!isStudentOk) {
+      const gNum = assignedGroupIds?.[0] || role.replace('nhomTruong', '');
       return {
         allowed: false,
-        reason: `Nhóm trưởng chỉ được điểm danh học sinh Nhóm ${assignedGroupIds?.join(', ')}`,
+        reason: `Nhóm trưởng chỉ được điểm danh học sinh Nhóm ${gNum}`,
       };
     }
     return { allowed: true };
@@ -298,6 +307,14 @@ export function getRolePermissionBadge(
         badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
         scopeText: 'Chỉ nhập mặt kỷ luật: Đi trễ, Khăn quàng, Đồng phục, Trật tự, Trái buổi',
       };
+    case 'hocSinh': {
+      const gNum = assignedGroupIds?.join(', ');
+      return {
+        badgeText: gNum ? `Học sinh Nhóm ${gNum}` : 'Học sinh',
+        badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
+        scopeText: gNum ? `Học sinh chính thức thuộc Nhóm ${gNum} (Theo dõi điểm & thi đua lớp)` : 'Học sinh của lớp',
+      };
+    }
     default: {
       const gNum = assignedGroupIds?.join(', ') || role.replace('nhomTruong', '');
       return {

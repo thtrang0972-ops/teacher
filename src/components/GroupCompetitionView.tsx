@@ -16,12 +16,15 @@ import {
   FileSpreadsheet,
   Gift,
 } from 'lucide-react';
-import { GroupSummary, Student, StudentWeeklyRecord } from '../types/discipline';
+import { GroupSummary, Student, StudentWeeklyRecord, UserRoleType } from '../types/discipline';
+import { canEditStudent } from '../utils/permissions';
 import { getClassificationColor } from '../utils/scoring';
 
 interface GroupCompetitionViewProps {
   groups: GroupSummary[];
   currentWeekName: string;
+  currentRole?: UserRoleType;
+  assignedGroupIds?: number[];
   onSelectStudent: (student: Student) => void;
   onQuickRecordStudent: (student: Student) => void;
   onOpenAdjustScore?: (student?: Student) => void;
@@ -33,6 +36,8 @@ interface GroupCompetitionViewProps {
 export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
   groups = [],
   currentWeekName,
+  currentRole = 'guest',
+  assignedGroupIds,
   onSelectStudent,
   onQuickRecordStudent,
   onOpenAdjustScore,
@@ -487,13 +492,30 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
                         </td>
                         <td className="py-2.5 px-2 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => onQuickRecordStudent(calc.student)}
-                              className="px-2 py-1 text-[11px] font-bold bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200 rounded-lg transition-colors cursor-pointer"
-                              title="Ghi nhận nề nếp hoặc vi phạm mới"
-                            >
-                              Ghi nhận
-                            </button>
+                            {canEditStudent(currentRole || 'guest', calc.student.groupId, assignedGroupIds) ? (
+                              <button
+                                onClick={() => onQuickRecordStudent(calc.student)}
+                                className="px-2 py-1 text-[11px] font-bold bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200 rounded-lg transition-colors cursor-pointer"
+                                title="Ghi nhận nề nếp hoặc vi phạm mới"
+                              >
+                                Ghi nhận
+                              </button>
+                            ) : currentRole?.startsWith('nhomTruong') ? (
+                              <span
+                                className="px-2 py-1 text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200 rounded-lg cursor-not-allowed"
+                                title={`Bạn là Nhóm trưởng Nhóm ${assignedGroupIds?.[0] || currentRole.replace('nhomTruong', '')}. Chỉ phụ trách ghi nhận Nhóm của mình!`}
+                              >
+                                🔒 Khác nhóm
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => onSelectStudent(calc.student)}
+                                className="px-2 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                                title="Xem điểm thi đua cá nhân (Chế độ chỉ xem)"
+                              >
+                                Xem điểm
+                              </button>
+                            )}
                             {onOpenAdjustScore && (
                               <button
                                 onClick={() => onOpenAdjustScore(calc.student)}

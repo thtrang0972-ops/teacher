@@ -19,6 +19,7 @@ import {
   Flag,
   Lock,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import {
   Student,
@@ -51,10 +52,12 @@ interface WeeklyScoreTableProps {
   assignedGroupIds?: number[];
   currentAccount?: UserAccount;
   onUpdateRecord: (studentId: string, updatedFields: Partial<StudentWeeklyRecord>) => void;
+  onUpdateStudent?: (studentId: string, updatedFields: Partial<Student>) => void;
   onQuickRecordStudent: (student: Student) => void;
   onOpenQuickEntry?: () => void;
   onOpenAdjustScore?: (student?: Student) => void;
   onOpenParentMessage?: (student?: Student) => void;
+  onOpenClassRoster?: () => void;
 }
 
 export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
@@ -67,10 +70,12 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   assignedGroupIds,
   currentAccount,
   onUpdateRecord,
+  onUpdateStudent,
   onQuickRecordStudent,
   onOpenQuickEntry,
   onOpenAdjustScore,
   onOpenParentMessage,
+  onOpenClassRoster,
 }) => {
   const isGVCN = currentRole === 'gvcn' || currentAccount?.role === 'gvcn';
   const [searchTerm, setSearchTerm] = useState('');
@@ -519,11 +524,24 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                 if (onOpenAdjustScore) onOpenAdjustScore();
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 border border-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
-              title="Điều chỉnh, tăng giảm hoặc xóa điểm cộng/trừ khi bị cho nhầm cho từng học sinh"
+              title="Điều chỉnh, tăng giảm hoặc xóa điểm cộng/trừ khi bị cho nhầm cho từng học sinh (có thể sửa lại họ tên nếu bị sai tên)"
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
-              <span>Sửa Lỗi / Điều Chỉnh Điểm</span>
+              <span>Sửa Lỗi / Sửa Tên HS</span>
             </button>
+
+            {/* Nút Mở Danh Sách HS để sửa tên / phân nhóm */}
+            {onOpenClassRoster && (
+              <button
+                type="button"
+                onClick={onOpenClassRoster}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 border border-indigo-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                title="Bị sai tên học sinh hoặc cần đổi tên? Bấm để mở bảng quản lý danh sách học sinh"
+              >
+                <Users className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Quản Lý Danh Sách / Đổi Tên</span>
+              </button>
+            )}
 
             {/* Nút Hoàn Tác (Undo) */}
             <button
@@ -1215,6 +1233,11 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
         onSaveAdjustment={(studentId, updatedRecord) => {
           onUpdateRecord(studentId, updatedRecord);
           setAuditLogs(loadAuditLogs());
+        }}
+        onUpdateStudentName={(studentId, newName) => {
+          if (onUpdateStudent) {
+            onUpdateStudent(studentId, { name: newName });
+          }
         }}
       />
 

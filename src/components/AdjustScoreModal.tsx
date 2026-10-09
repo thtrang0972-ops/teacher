@@ -14,6 +14,8 @@ import {
   Lock,
   ArrowRight,
   HelpCircle,
+  Check,
+  Edit2,
 } from 'lucide-react';
 import {
   Student,
@@ -46,6 +48,7 @@ interface AdjustScoreModalProps {
     updatedRecord: StudentWeeklyRecord,
     adjustmentReason?: string
   ) => void;
+  onUpdateStudentName?: (studentId: string, newName: string) => void;
 }
 
 export const AdjustScoreModal: React.FC<AdjustScoreModalProps> = ({
@@ -60,7 +63,10 @@ export const AdjustScoreModal: React.FC<AdjustScoreModalProps> = ({
   currentWeekId = 1,
   currentWeekName,
   onSaveAdjustment,
+  onUpdateStudentName,
 }) => {
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   // Danh sách nhóm được phép nhập theo quyền
   const getAllowedGroups = (): number[] => {
     if (currentRole === 'gvcn' || currentRole === 'lopTruong') {
@@ -423,7 +429,57 @@ export const AdjustScoreModal: React.FC<AdjustScoreModalProps> = ({
                       {currentStudent.stt}
                     </span>
                     <div>
-                      <h4 className="font-black text-sm text-slate-900">{currentStudent.name}</h4>
+                      {isEditingName ? (
+                        <div className="flex items-center gap-1.5 my-0.5">
+                          <input
+                            type="text"
+                            value={nameInput}
+                            onChange={(e) => setNameInput(e.target.value)}
+                            placeholder="Nhập tên mới..."
+                            className="px-2 py-1 text-xs font-bold border border-indigo-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (nameInput.trim() && onUpdateStudentName) {
+                                onUpdateStudentName(currentStudent.id, nameInput.trim());
+                                setIsEditingName(false);
+                              }
+                            }}
+                            className="p-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer"
+                            title="Lưu tên học sinh mới"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingName(false)}
+                            className="p-1 text-slate-500 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                            title="Hủy"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="font-black text-sm text-slate-900">{currentStudent.name}</h4>
+                          {onUpdateStudentName && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNameInput(currentStudent.name);
+                                setIsEditingName(true);
+                              }}
+                              className="text-xs text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md border border-indigo-200 transition-colors cursor-pointer flex items-center gap-1"
+                              title="Bị sai tên học sinh? Bấm vào đây để sửa lại tên"
+                            >
+                              <Edit2 className="w-3 h-3 text-indigo-600" />
+                              <span className="text-[10px] font-bold">Sửa tên</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                       <p className="text-[11px] text-slate-500">
                         Nhóm {currentStudent.groupId} · {currentStudent.role || 'Học sinh'}
                       </p>

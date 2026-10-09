@@ -133,6 +133,9 @@ export async function parseExcelOrCsvFile(file: File): Promise<RawImportStudent[
         let headerRowIdx = -1;
         let colMap: {
           stt?: number;
+          fullName?: number;
+          hoDem?: number;
+          ten?: number;
           name?: number;
           gender?: number;
           group?: number;
@@ -145,14 +148,24 @@ export async function parseExcelOrCsvFile(file: File): Promise<RawImportStudent[
 
           for (let c = 0; c < row.length; c++) {
             const cellVal = String(row[c] || '').toLowerCase().trim();
-            if (cellVal.includes('họ') || cellVal.includes('tên') || cellVal.includes('name')) {
+            if (cellVal.includes('họ và tên') || cellVal.includes('họ tên') || cellVal === 'full name' || cellVal === 'fullname') {
+              colMap.fullName = c;
+              headerRowIdx = r;
+            } else if (cellVal.includes('họ và chữ lót') || cellVal.includes('họ đệm') || cellVal.includes('họ và đệm') || cellVal === 'họ') {
+              colMap.hoDem = c;
+              headerRowIdx = r;
+            } else if (cellVal === 'tên' || cellVal === 'ten' || cellVal.endsWith(' tên') || cellVal.includes('first name') || cellVal === 'name') {
+              colMap.ten = c;
+              headerRowIdx = r;
+            } else if (cellVal.includes('name')) {
               colMap.name = c;
               headerRowIdx = r;
             }
-            if (cellVal.includes('stt') || cellVal === 'no') {
+
+            if (cellVal.includes('stt') || cellVal === 'no' || cellVal === 'số tt') {
               colMap.stt = c;
             }
-            if (cellVal.includes('giới tính') || cellVal.includes('phái') || cellVal.includes('gender')) {
+            if (cellVal.includes('giới tính') || cellVal.includes('phái') || cellVal.includes('gender') || cellVal === 'nữ' || cellVal === 'nam') {
               colMap.gender = c;
             }
             if (cellVal.includes('nhóm') || cellVal.includes('tổ') || cellVal.includes('group')) {
@@ -163,16 +176,16 @@ export async function parseExcelOrCsvFile(file: File): Promise<RawImportStudent[
             }
           }
 
-          if (colMap.name !== undefined) {
+          if (colMap.fullName !== undefined || (colMap.hoDem !== undefined && colMap.ten !== undefined) || colMap.name !== undefined) {
             break;
           }
         }
 
         // Nếu không tìm thấy hàng tiêu đề rõ ràng, giả định cột 1 là STT, cột 2 là Họ tên
-        if (colMap.name === undefined) {
+        if (colMap.fullName === undefined && colMap.hoDem === undefined && colMap.name === undefined) {
           colMap = {
             stt: 0,
-            name: 1,
+            fullName: 1,
             gender: 2,
             group: 3,
             role: 4,
@@ -187,16 +200,32 @@ export async function parseExcelOrCsvFile(file: File): Promise<RawImportStudent[
           const row = rawJson[r];
           if (!Array.isArray(row)) continue;
 
-          const rawName = colMap.name !== undefined ? String(row[colMap.name] || '').trim() : '';
+          let rawName = '';
+          if (colMap.fullName !== undefined && row[colMap.fullName] !== undefined) {
+            rawName = String(row[colMap.fullName] || '').trim();
+          } else if (colMap.hoDem !== undefined && colMap.ten !== undefined) {
+            const ho = String(row[colMap.hoDem] || '').trim();
+            const ten = String(row[colMap.ten] || '').trim();
+            rawName = `${ho} ${ten}`.trim();
+          } else if (colMap.name !== undefined && row[colMap.name] !== undefined) {
+            rawName = String(row[colMap.name] || '').trim();
+          } else if (colMap.ten !== undefined && row[colMap.ten] !== undefined) {
+            rawName = String(row[colMap.ten] || '').trim();
+          }
+
+          // Chuẩn hóa khoảng trắng trong họ tên
+          rawName = rawName.replace(/\s+/g, ' ').trim();
+
           // Bỏ qua hàng trống hoặc tiêu đề lặp lại
-          if (!rawName || rawName.toLowerCase() === 'họ và tên' || rawName.toLowerCase() === 'tên') {
+          const lowerName = rawName.toLowerCase();
+          if (!rawName || lowerName === 'họ và tên' || lowerName === 'họ tên' || lowerName === 'tên' || lowerName === 'họ') {
             continue;
           }
 
           const rawStt = colMap.stt !== undefined && row[colMap.stt] ? Number(row[colMap.stt]) : autoStt;
           const rawGenderStr = colMap.gender !== undefined ? String(row[colMap.gender] || '').trim().toLowerCase() : '';
           const gender: 'Nam' | 'Nữ' =
-            rawGenderStr === 'nữ' || rawGenderStr === 'nu' || rawGenderStr === 'female' || rawGenderStr === 'f'
+            rawGenderStr === 'nữ' || rawGenderStr === 'nu' || rawGenderStr === 'female' || rawGenderStr === 'f' || rawGenderStr === 'x'
               ? 'Nữ'
               : 'Nam';
 
@@ -212,7 +241,7 @@ export async function parseExcelOrCsvFile(file: File): Promise<RawImportStudent[
           const isLeader = roleStr.toLowerCase().includes('nhóm trưởng') || roleStr.toLowerCase().includes('tổ trưởng');
 
           students.push({
-            stt: rawStt || autoStt,
+            stt: !isNaN(rawStt) && rawStt > 0 ? rawStt : autoStt,
             name: rawName,
             gender,
             groupId: parsedGroup,
@@ -244,28 +273,74 @@ export function parsePastedStudentText(text: string): RawImportStudent[] {
   let autoStt = 1;
 
   for (const line of lines) {
-    // Thử tách theo tab (khi copy từ Excel) hoặc dấu phẩy / chấm phẩy
-    let parts = line.split('\t');
-    if (parts.length === 1) {
-      parts = line.split(/[,;]/);
+    // Bỏ qua dòng tiêu đề
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.startsWith('stt') || lowerLine.startsWith('họ và tên') || lowerLine.startsWith('họ tên')) {
+      continue;
     }
 
+    // Tách theo tab (khi copy từ Excel) hoặc dấu phẩy / chấm phẩy / gạch đứng
+    let parts = line.split('\t');
+    if (parts.length === 1) {
+      parts = line.split(/[,;|]/);
+    }
+    parts = parts.map((p) => p.trim()).filter((p) => p.length > 0);
+
     if (parts.length >= 2) {
-      // Dạng: STT | Họ tên | Giới tính | Nhóm
-      const part1 = parts[0].trim();
-      const isPart1Stt = /^\d+$/.test(part1);
+      const isGenderWord = (w: string) => {
+        const l = w.toLowerCase();
+        return l === 'nam' || l === 'nữ' || l === 'nu' || l === 'f' || l === 'm';
+      };
 
-      let name = isPart1Stt ? parts[1].trim() : part1;
-      let genderStr = isPart1Stt ? (parts[2] || '').trim().toLowerCase() : (parts[1] || '').trim().toLowerCase();
-      let groupStr = isPart1Stt ? (parts[3] || '').trim() : (parts[2] || '').trim();
+      let name = '';
+      let genderStr = '';
+      let groupStr = '';
 
-      // Kiểm tra nếu name bị dính số STT ở đầu (VD: "1. Nguyễn Văn A")
-      name = name.replace(/^\d+[\.\,\s\-]+/, '').trim();
+      const isFirstPartStt = /^\d+$/.test(parts[0]);
 
+      if (isFirstPartStt) {
+        // Dạng: STT | ...
+        if (parts.length >= 4 && !isGenderWord(parts[1]) && !isGenderWord(parts[2])) {
+          // TH1: STT | Họ đệm | Tên | Giới tính (chuẩn trường học VNEDU)
+          name = `${parts[1]} ${parts[2]}`.trim();
+          genderStr = parts[3] || '';
+          groupStr = parts[4] || '';
+        } else if (parts.length >= 3 && !isGenderWord(parts[1]) && !isGenderWord(parts[2]) && !/^\d+$/.test(parts[2])) {
+          // TH2: STT | Họ đệm | Tên
+          name = `${parts[1]} ${parts[2]}`.trim();
+          genderStr = parts[3] || '';
+          groupStr = parts[4] || '';
+        } else {
+          // TH3: STT | Họ và tên | Giới tính | Nhóm
+          name = parts[1];
+          genderStr = parts[2] || '';
+          groupStr = parts[3] || '';
+        }
+      } else {
+        // Không có cột STT đầu tiên
+        if (parts.length >= 3 && !isGenderWord(parts[0]) && !isGenderWord(parts[1]) && isGenderWord(parts[2])) {
+          // Họ đệm | Tên | Giới tính
+          name = `${parts[0]} ${parts[1]}`.trim();
+          genderStr = parts[2] || '';
+          groupStr = parts[3] || '';
+        } else if (parts.length === 2 && !isGenderWord(parts[0]) && !isGenderWord(parts[1]) && !/^\d+$/.test(parts[1])) {
+          // Họ đệm | Tên (2 cột riêng khi copy từ Excel)
+          name = `${parts[0]} ${parts[1]}`.trim();
+        } else {
+          // Họ và tên | Giới tính | Nhóm
+          name = parts[0];
+          genderStr = parts[1] || '';
+          groupStr = parts[2] || '';
+        }
+      }
+
+      // Xoá STT nếu còn sót ở đầu tên (VD: "1. Nguyễn Văn An")
+      name = name.replace(/^\d+[\.\,\s\-]+/, '').replace(/\s+/g, ' ').trim();
       if (!name) continue;
 
+      const lowerGender = genderStr.toLowerCase();
       const gender: 'Nam' | 'Nữ' =
-        genderStr.includes('nữ') || genderStr.includes('nu') || genderStr.includes('f') ? 'Nữ' : 'Nam';
+        lowerGender.includes('nữ') || lowerGender.includes('nu') || lowerGender === 'f' ? 'Nữ' : 'Nam';
 
       let groupId: number | undefined = undefined;
       const gNum = parseInt(groupStr.replace(/\D/g, ''), 10);
@@ -283,12 +358,18 @@ export function parsePastedStudentText(text: string): RawImportStudent[] {
       autoStt++;
     } else {
       // Chỉ có 1 cột tên duy nhất
-      let name = line.replace(/^\d+[\.\,\s\-]+/, '').trim();
+      let name = line.replace(/^\d+[\.\,\s\-]+/, '').replace(/\s+/g, ' ').trim();
       if (!name) continue;
 
-      // Đoán giới tính qua tên lót phổ biến nếu muốn hoặc mặc định Nam
       const lower = name.toLowerCase();
-      const isFemale = lower.includes(' thị ') || lower.includes(' thi ') || lower.includes(' ngọc ') || lower.includes(' thảo ') || lower.includes(' như ');
+      const isFemale =
+        lower.includes(' thị ') ||
+        lower.includes(' thi ') ||
+        lower.includes(' ngọc ') ||
+        lower.includes(' thảo ') ||
+        lower.includes(' như ') ||
+        lower.includes(' phương ') ||
+        lower.includes(' anh');
 
       students.push({
         stt: autoStt,

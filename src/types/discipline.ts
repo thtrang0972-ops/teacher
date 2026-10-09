@@ -186,7 +186,8 @@ export type UserRoleType =
   | 'nhomTruong3'
   | 'nhomTruong4'
   | 'nhomTruong5'
-  | 'nhomTruong6';
+  | 'nhomTruong6'
+  | 'hocSinh';
 
 export interface GroupWeeklyRemark {
   groupId: number;
