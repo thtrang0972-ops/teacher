@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Home,
+  MoreVertical,
   Search,
   X,
   Trophy,
@@ -79,6 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
     (weeks && weeks[0]) || { id: 1, name: 'Tuần 1', startDate: '', endDate: '' };
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const navItems = [
     { id: 'competition', label: 'Trang chủ thi đua 6 nhóm', shortLabel: 'Thi đua 6 nhóm', icon: Trophy },
@@ -107,6 +109,64 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-30 shadow-xl font-['Be_Vietnam_Pro',sans-serif]">
+      {/* 0. THANH TRẠNG THÁI MỎNG TRÊN CÙNG (Top Slim Status Bar) */}
+      <div className="bg-slate-950 text-slate-300 text-[11px] py-1 px-4 sm:px-6 border-b border-white/10">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-white flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Lớp {metadata.className || '9A3'} · THCS
+            </span>
+            <span className="text-slate-600 hidden sm:inline">|</span>
+            <span className="text-slate-400 hidden sm:inline">
+              GVCN: <strong className="text-slate-200">{metadata.homeroomTeacher || 'Cô Nguyễn Thị Thuỳ Trang'}</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 font-medium">
+            {currentAccount ? (
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 hidden xs:inline">Tài khoản:</span>
+                <span className="font-black text-amber-300">
+                  {currentAccount.displayName}
+                </span>
+                <span className="text-slate-300 text-[10px] bg-white/10 px-1.5 py-0.5 rounded font-bold">
+                  {currentAccount.title}
+                </span>
+                <span className="text-slate-600">|</span>
+                <button
+                  type="button"
+                  onClick={onOpenAuthModal}
+                  className="text-blue-300 hover:text-white hover:underline cursor-pointer font-bold transition-colors"
+                >
+                  Đổi tài khoản
+                </button>
+                <span className="text-slate-600">|</span>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="text-rose-400 hover:text-rose-300 hover:underline cursor-pointer font-bold transition-colors"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Chưa đăng nhập</span>
+                <span className="text-slate-600">|</span>
+                <button
+                  type="button"
+                  onClick={onOpenAuthModal}
+                  className="text-amber-300 hover:text-amber-200 hover:underline font-bold cursor-pointer"
+                >
+                  ⚡ Đăng nhập
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* 1. THANH THÔNG BÁO PHÍA TRÊN (Top Notification Bar) - Nhập Tuần và Ngày */}
       <div className="bg-blue-900 border-b border-blue-800/90 text-blue-100 text-xs py-2 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
@@ -325,47 +385,93 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Nề Nếp Tích Cực</span>
             </div>
 
-            {/* In phiếu A4 */}
-            <button
-              type="button"
-              onClick={onOpenPrint}
-              title="In / Xuất phiếu nề nếp A4"
-              className="p-2 text-white bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl border border-white/20 transition-all cursor-pointer shadow-xs"
-            >
-              <Printer className="w-4 h-4" />
-            </button>
-
-            {/* Danh sách lớp */}
-            <button
-              type="button"
-              onClick={onOpenClassRoster}
-              title={`Danh sách ${students?.length || 0} học sinh & 6 Nhóm`}
-              className="p-2 text-white bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl border border-white/20 transition-all cursor-pointer shadow-xs"
-            >
-              <Users className="w-4 h-4" />
-            </button>
-
-            {/* Đổi Theme */}
-            {onOpenThemeModal && (
+            {/* NÚT THAO TÁC KHÁC (...) - Gộp các nút In, Thành viên, Cài đặt, Theme */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={onOpenThemeModal}
-                title="Đổi giao diện màu sắc & hình nền"
-                className="p-2 text-white bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl border border-white/20 transition-all cursor-pointer shadow-xs"
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                title="Thao tác khác (In, Danh sách học sinh, Theme, Cài đặt)"
+                className="flex items-center gap-1.5 px-3 py-2 text-white bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl border border-white/20 transition-all cursor-pointer shadow-xs text-xs font-bold"
               >
-                <Palette className="w-4 h-4" />
+                <MoreVertical className="w-4 h-4" />
+                <span className="hidden sm:inline">Thao tác khác</span>
               </button>
-            )}
 
-            {/* Cài đặt lớp */}
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              title="Cài đặt thông tin Lớp / GVCN"
-              className="p-2 text-white bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl border border-white/20 transition-all cursor-pointer shadow-xs"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+              {showMoreMenu && (
+                <div
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 font-['Be_Vietnam_Pro',sans-serif] text-slate-800"
+                  onClick={() => setShowMoreMenu(false)}
+                >
+                  <div className="px-3.5 py-1.5 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    Công Cụ & Tiện Ích Lớp
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onOpenPrint}
+                    className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-slate-500" />
+                    <div>
+                      <p className="leading-tight font-black">In / Xuất phiếu nề nếp A4</p>
+                      <p className="text-[10px] font-normal text-slate-400">Xuất báo cáo tuần in giấy</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onOpenClassRoster}
+                    className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Users className="w-4 h-4 text-slate-500" />
+                    <div>
+                      <p className="leading-tight font-black">Danh sách lớp ({students?.length || 0} HS)</p>
+                      <p className="text-[10px] font-normal text-slate-400">Xem và sửa danh sách 6 nhóm</p>
+                    </div>
+                  </button>
+
+                  {onOpenImportRoster && (
+                    <button
+                      type="button"
+                      onClick={onOpenImportRoster}
+                      className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-slate-500" />
+                      <div>
+                        <p className="leading-tight font-black">Tải danh sách từ Excel</p>
+                        <p className="text-[10px] font-normal text-slate-400">Import học sinh từ file mẫu</p>
+                      </div>
+                    </button>
+                  )}
+
+                  {onOpenThemeModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenThemeModal}
+                      className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Palette className="w-4 h-4 text-slate-500" />
+                      <div>
+                        <p className="leading-tight font-black">Đổi màu sắc & giao diện</p>
+                        <p className="text-[10px] font-normal text-slate-400">Tùy biến màu sắc chủ đạo</p>
+                      </div>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={onOpenSettings}
+                    className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer border-t border-slate-100"
+                  >
+                    <Settings className="w-4 h-4 text-slate-500" />
+                    <div>
+                      <p className="leading-tight font-black">Cài đặt thông tin Lớp & GVCN</p>
+                      <p className="text-[10px] font-normal text-slate-400">Đổi tên lớp, niên khóa, GVCN</p>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
 
 
 

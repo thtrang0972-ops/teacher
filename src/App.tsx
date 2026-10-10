@@ -12,6 +12,7 @@ import { ImportStudentsModal } from './components/ImportStudentsModal';
 import { RoleSwitcher } from './components/RoleSwitcher';
 import { RoleRemarksModal } from './components/RoleRemarksModal';
 import { ClassSettingsModal } from './components/ClassSettingsModal';
+import { ManHinhDangNhap } from './components/ManHinhDangNhap';
 import { AuthModal } from './components/AuthModal';
 import { QuickLoginModal } from './components/QuickLoginModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
@@ -831,6 +832,20 @@ export default function App() {
     setIsChatAssistantOpen((prev) => !prev);
   };
 
+  // VÁ LỖ HỔNG BẢO MẬT: Nếu chưa đăng nhập, CHẶN HOÀN TOÀN không cho xem Dashboard
+  const isAuthenticated = currentUserRole !== 'guest' && !!currentAccount;
+
+  if (!isAuthenticated) {
+    return (
+      <ManHinhDangNhap
+        metadata={metadata}
+        students={students}
+        accounts={accounts}
+        onLoginSuccess={handleLogin}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-['Be_Vietnam_Pro',sans-serif]">
       {/* Header bar */}
@@ -883,6 +898,9 @@ export default function App() {
             onSelectStudent={handleSelectStudentForQuickEntry}
             onQuickRecordStudent={handleSelectStudentForQuickEntry}
             onOpenImportRoster={() => setIsImportModalOpen(true)}
+            className={metadata.className}
+            teacherName={metadata.homeroomTeacher}
+            onOpenRoleRemarks={() => setIsRoleRemarksOpen(true)}
           />
         )}
 
@@ -1035,7 +1053,7 @@ export default function App() {
         accounts={accounts}
         metadata={metadata}
         currentAccountId={currentAccountId}
-        isLoggedIn={currentUserRole !== 'guest' && !!currentAccount}
+        isLoggedIn={!!currentAccount}
         onLogin={handleLogin}
         onLogout={handleLogout}
         onOpenFullAuthModal={() => {

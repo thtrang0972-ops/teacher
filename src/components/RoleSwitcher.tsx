@@ -330,14 +330,15 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             </button>
           )}
 
-          {/* Nút Nhập Nhận Xét & Báo Cáo Tuần */}
+          {/* Nút Nhập Nhận Xét & Báo Cáo Tuần - Kích hoạt bằng Gemini AI */}
           <button
             onClick={onOpenRoleRemarks}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-bold transition-colors shadow-2xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-black text-xs transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-[0.98] border border-indigo-400/30"
+            title="Sổ nhận xét 6 nhóm & tự động viết lời phê bằng Gemini AI"
           >
-            <PenTool className="w-3.5 h-3.5 text-blue-600" />
-            <span className="hidden sm:inline">Sổ Nhận Xét 6 Nhóm</span>
-            <span className="sm:hidden">Nhận Xét</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden sm:inline">🤖 AI Nhận Xét 6 Nhóm</span>
+            <span className="sm:hidden">🤖 AI Nhận Xét</span>
           </button>
         </div>
       </div>

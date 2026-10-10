@@ -1,4 +1,4 @@
-import { UserRoleType, StudentWeeklyRecord, MorningDutyType } from '../types/discipline';
+import { UserRoleType, StudentWeeklyRecord, MorningDutyType, Student, ClassMetadata } from '../types/discipline';
 
 export interface PermissionCheckResult {
   allowed: boolean;
@@ -324,4 +324,138 @@ export function getRolePermissionBadge(
       };
     }
   }
+}
+
+export interface StudentRoleDetermination {
+  role: UserRoleType;
+  title: string;
+  isOfficer: boolean;
+  assignedGroupIds: number[];
+  avatarIcon: string;
+  scopeDescription: string;
+}
+
+/**
+ * Tự động nhận diện quyền hạn của học sinh theo danh sách đã gửi lên và cấu hình lớp:
+ * - Lớp trưởng: Toàn quyền bao quát cả 6 nhóm
+ * - Lớp phó Học tập: Chuyên trách mảng học tập toàn lớp
+ * - Lớp phó Trật tự: Chuyên trách mảng kỷ luật/trật tự toàn lớp
+ * - Lớp phó Lao động: Chuyên trách mảng lao động/vệ sinh toàn lớp
+ * - Nhóm trưởng: Nhóm nào phụ trách nhóm đó (chỉ được nhập/sửa học sinh nhóm mình)
+ * - Học sinh thông thường: Chế độ chỉ xem điểm cá nhân, KHÔNG được nhập hay sửa điểm
+ */
+export function determineStudentRole(
+  student: Student,
+  metadata?: ClassMetadata
+): StudentRoleDetermination {
+  const normRole = (student.role || '').toLowerCase().trim();
+  const normName = student.name.toLowerCase().trim();
+
+  // 1. Kiểm tra Lớp trưởng
+  const isMonitor =
+    normRole.includes('lớp trưởng') ||
+    normRole.includes('lop truong') ||
+    normRole === 'lt' ||
+    (metadata?.monitorName && metadata.monitorName.toLowerCase().trim() === normName);
+
+  if (isMonitor) {
+    return {
+      role: 'lopTruong',
+      title: 'Lớp trưởng',
+      isOfficer: true,
+      assignedGroupIds: [1, 2, 3, 4, 5, 6],
+      avatarIcon: '🎖️',
+      scopeDescription: 'Được phép nhập và sửa điểm nề nếp toàn bộ 6 nhóm',
+    };
+  }
+
+  // 2. Kiểm tra Lớp phó Học tập
+  const isAcademic =
+    normRole.includes('học tập') ||
+    normRole.includes('hoc tap') ||
+    normRole.includes('lpht') ||
+    normRole === 'lp ht' ||
+    (metadata?.academicViceMonitorName && metadata.academicViceMonitorName.toLowerCase().trim() === normName);
+
+  if (isAcademic) {
+    return {
+      role: 'lopPhoHocTap',
+      title: 'Lớp phó Học tập',
+      isOfficer: true,
+      assignedGroupIds: [1, 2, 3, 4, 5, 6],
+      avatarIcon: '📚',
+      scopeDescription: 'Chuyên trách nhập/sửa tiêu chí học tập: KTB/KLB/KSB, Điểm 9-10, Phát biểu, Truy bài',
+    };
+  }
+
+  // 3. Kiểm tra Lớp phó Trật tự
+  const isDiscipline =
+    normRole.includes('trật tự') ||
+    normRole.includes('trat tu') ||
+    normRole.includes('lptt') ||
+    normRole === 'lp tt' ||
+    normRole.includes('kỷ luật') ||
+    (metadata?.disciplineViceMonitorName && metadata.disciplineViceMonitorName.toLowerCase().trim() === normName) ||
+    (metadata?.viceMonitorName && metadata.viceMonitorName.toLowerCase().trim() === normName);
+
+  if (isDiscipline) {
+    return {
+      role: 'lopPhoTratTu',
+      title: 'Lớp phó Trật tự',
+      isOfficer: true,
+      assignedGroupIds: [1, 2, 3, 4, 5, 6],
+      avatarIcon: '🛡️',
+      scopeDescription: 'Chuyên trách nhập/sửa tiêu chí kỷ luật: Đi trễ, Đồng phục, Trật tự, Trái buổi',
+    };
+  }
+
+  // 4. Kiểm tra Lớp phó Lao động
+  const isLabor =
+    normRole.includes('lao động') ||
+    normRole.includes('lao dong') ||
+    normRole.includes('lpld') ||
+    normRole === 'lp ld' ||
+    normRole.includes('vệ sinh') ||
+    (metadata?.laborViceMonitorName && metadata.laborViceMonitorName.toLowerCase().trim() === normName);
+
+  if (isLabor) {
+    return {
+      role: 'lopPhoLaoDong',
+      title: 'Lớp phó Lao động',
+      isOfficer: true,
+      assignedGroupIds: [1, 2, 3, 4, 5, 6],
+      avatarIcon: '🧹',
+      scopeDescription: 'Chuyên trách nhập/sửa tiêu chí lao động: Vệ sinh bẩn, Trực nhật, Xả rác, Tài sản',
+    };
+  }
+
+  // 5. Kiểm tra Nhóm trưởng (Nhóm nào thì phụ trách nhóm đó)
+  const isLeader =
+    student.isLeader ||
+    normRole.includes('nhóm trưởng') ||
+    normRole.includes('nhom truong') ||
+    normRole.includes('tổ trưởng') ||
+    normRole === 'nt' ||
+    (metadata?.groupLeaders?.[student.groupId] && metadata.groupLeaders[student.groupId].toLowerCase().trim() === normName);
+
+  if (isLeader) {
+    return {
+      role: ('nhomTruong' + student.groupId),
+      title: 'Nhóm trưởng Nhóm ' + student.groupId,
+      isOfficer: true,
+      assignedGroupIds: [student.groupId],
+      avatarIcon: '🚩',
+      scopeDescription: 'Nhóm trưởng Nhóm ' + student.groupId + ': Chỉ được phép nhập và sửa điểm học sinh Nhóm ' + student.groupId,
+    };
+  }
+
+  // 6. Học sinh thông thường (KHÔNG ĐƯỢC PHÂN QUYỀN: CHỈ XEM ĐIỂM, KHÔNG ĐƯỢC NHẬP/SỬA)
+  return {
+    role: 'hocSinh',
+    title: 'Học sinh Nhóm ' + student.groupId,
+    isOfficer: false,
+    assignedGroupIds: [student.groupId],
+    avatarIcon: '👤',
+    scopeDescription: 'Chế độ chỉ xem điểm cá nhân và thi đua lớp. Không có quyền nhập hay sửa điểm.',
+  };
 }

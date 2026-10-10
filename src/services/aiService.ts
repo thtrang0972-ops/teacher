@@ -76,3 +76,24 @@ export async function sendChatMessage(payload: {
 
   return response.json();
 }
+
+export async function generateWeeklyComment(payload: {
+  weekData?: any;
+  className?: string;
+  teacherName?: string;
+  weekName?: string;
+  groupSummaries?: any[];
+}): Promise<{ comment: string }> {
+  const response = await fetch('/api/ai/weekly-comment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Lỗi server: ${response.status}`);
+  }
+
+  return response.json();
+}

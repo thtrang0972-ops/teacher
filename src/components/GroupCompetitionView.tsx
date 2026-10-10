@@ -15,7 +15,12 @@ import {
   ShieldAlert,
   FileSpreadsheet,
   Gift,
+  Bot,
+  Copy,
+  Send,
+  Check,
 } from 'lucide-react';
+import { generateWeeklyComment } from '../services/aiService';
 import { GroupSummary, Student, StudentWeeklyRecord, UserRoleType } from '../types/discipline';
 import { canEditStudent } from '../utils/permissions';
 import { getClassificationColor } from '../utils/scoring';
@@ -31,6 +36,9 @@ interface GroupCompetitionViewProps {
   onOpenImportRoster?: () => void;
   teacherGroupNotes?: Record<number, string>;
   onOpenTeacherNotesModal?: () => void;
+  className?: string;
+  teacherName?: string;
+  onOpenRoleRemarks?: () => void;
 }
 
 export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
@@ -44,8 +52,41 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
   onOpenImportRoster,
   teacherGroupNotes,
   onOpenTeacherNotesModal,
+  className,
+  teacherName,
+  onOpenRoleRemarks,
 }) => {
   const [selectedGroupId, setSelectedGroupId] = useState<number>(groups[0]?.groupId || 1);
+
+  // Gemini AI Weekly Comment State
+  const [aiComment, setAiComment] = useState('');
+  const [loadingAiComment, setLoadingAiComment] = useState(false);
+  const [aiCopied, setAiCopied] = useState(false);
+
+  const handleGenerateAiComment = async () => {
+    setLoadingAiComment(true);
+    try {
+      const res = await generateWeeklyComment({
+        className: className || '9A3',
+        teacherName: teacherName || 'Cô Nguyễn Thị Thuỳ Trang',
+        weekName: currentWeekName,
+        groupSummaries: groups,
+      });
+      setAiComment(res.comment || '');
+    } catch (err) {
+      console.error(err);
+      alert('Không thể tạo nhận xét bằng AI lúc này. Vui lòng thử lại sau giây lát!');
+    } finally {
+      setLoadingAiComment(false);
+    }
+  };
+
+  const handleCopyComment = () => {
+    if (!aiComment) return;
+    navigator.clipboard.writeText(aiComment);
+    setAiCopied(true);
+    setTimeout(() => setAiCopied(false), 2000);
+  };
 
   // Nhóm có rank = 1, 2, 3
   const top1 = (groups || []).find((g) => g.rank === 1);
@@ -263,6 +304,103 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* 🤖 KHỐI TỐI THƯỢNG: NHẬN XÉT TỰ ĐỘNG BẰNG GEMINI AI STUDIO */}
+      <div className="bg-gradient-to-r from-indigo-900 via-purple-950 to-blue-900 rounded-3xl p-5 sm:p-6 text-white shadow-xl border border-indigo-400/30">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-500 text-slate-950 flex items-center justify-center font-black shadow-lg border border-amber-300">
+              <Sparkles className="w-6 h-6 text-slate-950" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full shadow-2xs">
+                  Gemini AI Studio
+                </span>
+                <span className="text-xs text-blue-200 font-semibold">
+                  Tự động phân tích điểm & vi phạm 6 nhóm
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-white mt-1">
+                Trợ Lý Tự Động Viết Nhận Xét & Lời Phê Tuần
+              </h3>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGenerateAiComment}
+            disabled={loadingAiComment}
+            className="px-5 py-2.5 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 hover:from-amber-300 hover:to-orange-400 active:from-orange-600 disabled:opacity-50 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-lg transition-all cursor-pointer flex items-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            {loadingAiComment ? (
+              <>
+                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
+                <span>Gemini đang phân tích số liệu...</span>
+              </>
+            ) : (
+              <>
+                <Bot className="w-4 h-4 text-slate-950" />
+                <span>🤖 Nhờ Gemini Viết Nhận Xét {currentWeekName}</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Khung kết quả hiển thị lời phê AI */}
+        {aiComment ? (
+          <div className="mt-4 space-y-3 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between text-xs text-blue-200 font-bold">
+              <span>Lời phê đề xuất từ Gemini AI (Giáo viên có thể chỉnh sửa trực tiếp):</span>
+              <span className="text-emerald-400 text-[11px] flex items-center gap-1 font-extrabold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                Đã tổng hợp từ dữ liệu 6 nhóm
+              </span>
+            </div>
+
+            <textarea
+              value={aiComment}
+              onChange={(e) => setAiComment(e.target.value)}
+              rows={4}
+              className="w-full p-4 bg-white/10 text-white placeholder-blue-300 border border-white/25 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y shadow-inner"
+              placeholder="Đoạn nhận xét tổng kết tuần của GVCN..."
+            />
+
+            <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
+              <span className="text-[11px] text-blue-200">
+                💡 Văn phong sư phạm chuẩn mực, súc tích, sẵn sàng gửi phụ huynh và lưu vào sổ tổng kết.
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyComment}
+                  className="px-3.5 py-2 bg-white/15 hover:bg-white/25 text-white text-xs font-bold rounded-xl border border-white/20 transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Sao chép lời phê"
+                >
+                  {aiCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{aiCopied ? 'Đã sao chép' : 'Sao chép'}</span>
+                </button>
+
+                {onOpenRoleRemarks && (
+                  <button
+                    type="button"
+                    onClick={onOpenRoleRemarks}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5 hover:scale-[1.02]"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>📢 Duyệt & Mở Sổ Nhận Xét Gửi PH</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3.5 text-xs text-blue-200/90 leading-relaxed flex items-center gap-2">
+            <span>✨ Bấm nút <strong>"Nhờ Gemini Viết Nhận Xét {currentWeekName}"</strong> để AI đọc toàn bộ thứ hạng, điểm trung bình và các vi phạm của 6 nhóm, tự động soạn thảo đoạn nhận xét hoàn chỉnh dưới 2 giây.</span>
+          </div>
+        )}
       </div>
 
       {/* Main Grid: Bảng tổng hợp 6 nhóm (Left) + Chi tiết thành viên nhóm đang chọn (Right) */}

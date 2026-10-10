@@ -24,6 +24,7 @@ import {
   WeekInfo,
 } from '../types/discipline';
 import { getRoleInfoList } from './RoleSwitcher';
+import { generateWeeklyComment } from '../services/aiService';
 
 interface RoleRemarksModalProps {
   isOpen: boolean;
@@ -84,6 +85,7 @@ export const RoleRemarksModal: React.FC<RoleRemarksModalProps> = ({
   const [formData, setFormData] = useState<WeeklyRemarksStore>(JSON.parse(JSON.stringify(currentStore)));
   const [copied, setCopied] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [loadingGemini, setLoadingGemini] = useState(false);
 
   // Tab đang chọn
   const getInitialTab = (): string => {
@@ -159,6 +161,35 @@ ${formData.officerRemarks.teacherAdvice.advice || 'GVCN đồng ý với kết q
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleGeminiGenerateAdvice = async () => {
+    setLoadingGemini(true);
+    try {
+      const res = await generateWeeklyComment({
+        className: metadata.className,
+        teacherName: metadata.homeroomTeacher,
+        weekName: currentWeek.name,
+        weekData: formData,
+      });
+      if (res.comment) {
+        setFormData((prev) => ({
+          ...prev,
+          officerRemarks: {
+            ...prev.officerRemarks,
+            teacherAdvice: {
+              ...prev.officerRemarks.teacherAdvice,
+              advice: res.comment,
+            },
+          },
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối với Gemini AI lúc này. Vui lòng thử lại sau giây lát!');
+    } finally {
+      setLoadingGemini(false);
+    }
   };
 
   // Tự động tổng hợp nhận xét của GVCN từ báo cáo của 6 Nhóm & Ban Cán Sự
@@ -873,15 +904,27 @@ ${formData.officerRemarks.teacherAdvice.advice || 'GVCN đồng ý với kết q
                     </label>
 
                     {isEditable && (
-                      <button
-                        type="button"
-                        onClick={handleAutoGenerateTeacherAdvice}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                        title="Tự động phân tích báo cáo từ 6 nhóm và các mặt của Ban cán sự để soạn lời dặn tổng kết"
-                      >
-                        <Wand2 className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Tự động nhận xét theo báo cáo tuần</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleGeminiGenerateAdvice}
+                          disabled={loadingGemini}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:from-purple-800 text-white rounded-lg text-xs font-black transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                          title="Gọi Google AI Studio (Gemini) đọc dữ liệu tuần và tự động soạn lời phê"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>{loadingGemini ? 'Gemini đang viết lời phê...' : '🤖 Nhờ Gemini AI Soạn Lời Phê'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleAutoGenerateTeacherAdvice}
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                          title="Tự động ghép báo cáo từ 6 nhóm"
+                        >
+                          <Wand2 className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Tổng hợp thủ công</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                   <textarea

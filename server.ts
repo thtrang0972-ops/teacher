@@ -468,6 +468,55 @@ QUY TẮC TRẢ LỜI:
 });
 
 // ============================================================================
+// 4. API: TỰ ĐỘNG VIẾT NHẬN XÉT TỔNG KẾT TUẦN BẰNG GEMINI AI
+// ============================================================================
+app.post('/api/ai/weekly-comment', async (req: Request, res: Response) => {
+  try {
+    const { weekData, className, teacherName, weekName, groupSummaries } = req.body;
+
+    const cName = className || '9A3';
+    const tName = teacherName || 'Cô Nguyễn Thị Thuỳ Trang';
+    const wName = weekName || 'Tuần này';
+
+    const prompt = `Bạn là một Giáo viên chủ nhiệm bậc THCS tại Việt Nam xuất sắc, tận tâm và giàu kinh nghiệm sư phạm.
+Hãy viết một đoạn nhận xét tổng kết tuần ngắn gọn, súc tích (khoảng 3-4 câu, khoảng 120-180 từ) để gửi cho phụ huynh và học sinh lớp ${cName}.
+Lời văn cần trang trọng, ấm áp, mang tính xây dựng, biểu dương các nỗ lực tiến bộ của học sinh và định hướng rèn luyện cho tuần mới.
+
+DƯỚI ĐÂY LÀ DỮ LIỆU THI ĐUA CỦA ${wName}:
+${JSON.stringify(
+  {
+    lop: cName,
+    gvcn: tName,
+    tuan: wName,
+    thong_ke_6_nhom: groupSummaries || weekData,
+  },
+  null,
+  2
+)}
+
+Yêu cầu xuất ra:
+Chỉ trả về trực tiếp đoạn nhận xét hoàn chỉnh (không kèm lời chào mở đầu thừa thãi hay chú thích).`;
+
+    if (ai) {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+      });
+
+      return res.json({ comment: response.text?.trim() || '' });
+    }
+
+    // Heuristic Fallback khi chưa cấu hình API key
+    const fallbackComment = `Trong ${wName}, tập thể lớp ${cName} đã duy trì tốt nề nếp kỷ luật, các nhóm tích cực thi đua và có nhiều học sinh đạt điểm tốt trong các giờ học. Ban cán sự và các nhóm trưởng đã nêu cao tinh thần trách nhiệm, đôn đốc trực nhật vệ sinh sạch sẽ. Mong rằng sang tuần mới, các em tiếp tục phát huy tinh thần đoàn kết, khắc phục những thiếu sót nhỏ để đưa lớp ngày càng tiến bộ hơn nữa.`;
+
+    return res.json({ comment: fallbackComment });
+  } catch (error: any) {
+    console.error('Lỗi API weekly-comment:', error);
+    res.status(500).json({ error: error.message || 'Lỗi xử lý nhận xét AI' });
+  }
+});
+
+// ============================================================================
 // MOUNT VITE MIDDLEWARE IN DEV HOẶC STATIC FILES IN PROD
 // ============================================================================
 async function startServer() {

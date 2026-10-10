@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Student, UserAccount, UserRoleType } from '../types/discipline';
 import { matchStudentQuery, removeVietnameseTones } from '../utils/vietnamese';
+import { determineStudentRole } from '../utils/permissions';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -160,16 +161,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!matched && students.length > 0) {
       studentMatched = students.find((s) => matchStudentQuery(s, trimmedUser));
       if (studentMatched && (trimmedPass === '123' || trimmedPass.length > 0)) {
+        const roleInfo = determineStudentRole(studentMatched);
         matched = {
           id: `acc-${studentMatched.id}`,
           username: studentMatched.stt ? studentMatched.stt.toString() : studentMatched.id,
           password: trimmedPass,
-          role: studentMatched.isLeader ? (`nhomTruong${studentMatched.groupId}` as UserRoleType) : 'hocSinh',
+          role: roleInfo.role,
           displayName: studentMatched.name,
-          title: studentMatched.role || `Học sinh Nhóm ${studentMatched.groupId}`,
-          avatarIcon: studentMatched.isLeader ? '🚩' : '👤',
-          assignedGroupIds: [studentMatched.groupId],
-          description: `Học sinh ${studentMatched.name} - Nhóm ${studentMatched.groupId}`,
+          title: roleInfo.title,
+          avatarIcon: roleInfo.avatarIcon,
+          assignedGroupIds: roleInfo.assignedGroupIds,
+          description: `${roleInfo.title}: ${roleInfo.scopeDescription}`,
         };
       }
     }
@@ -318,7 +320,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
         </div>
 
-
+        {/* Nút chuyển nhanh sang chế độ ĐĂNG NHẬP NHANH 1 CHẠM */}
+        {onOpenQuickLogin && (
+          <div className="px-5 pt-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenQuickLogin();
+              }}
+              className="w-full p-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 active:from-amber-500 text-slate-950 font-black text-xs rounded-2xl shadow-sm border border-amber-300 flex items-center justify-between cursor-pointer transition-all hover:scale-[1.01]"
+              title="Mở hộp thoại đăng nhập nhanh 1 chạm"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-white/40 flex items-center justify-center">
+                  <Zap className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
+                </div>
+                <span>⚡ Bấm vào đây để ĐĂNG NHẬP NHANH 1 CHẠM</span>
+              </div>
+              <span className="text-[10px] bg-slate-950 text-amber-300 font-extrabold px-2 py-0.5 rounded-full uppercase">
+                Không cần gõ mật khẩu
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Thanh chọn 2 Tab: Dành cho Học Sinh & Dành cho Ban Cán Sự / GVCN */}
         <div className="px-5 pt-3 pb-1 shrink-0 flex items-center gap-2">

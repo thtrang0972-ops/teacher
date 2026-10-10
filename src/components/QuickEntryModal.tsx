@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   X,
+  CheckCircle2,
+  Save,
   PlusCircle,
   Clock,
   SunMoon,
@@ -546,27 +548,44 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
             )}
           </div>
 
-          {/* Footer (Cố định ở dưới, luôn nhìn thấy nút bấm) */}
-          <div className="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-slate-200 bg-slate-50/80 shrink-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 rounded-lg transition-colors cursor-pointer"
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className={`px-5 py-2 text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1.5 ${
-                canSubmit
-                  ? 'text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 cursor-pointer'
-                  : 'text-slate-400 bg-slate-200 cursor-not-allowed'
-              }`}
-            >
-              {!canSubmit && <Lock className="w-3.5 h-3.5" />}
-              <span>Lưu Ghi Nhận</span>
-            </button>
+          {/* Footer (Cố định ở dưới, nút Lưu Ghi Nhận to rõ nổi bật) */}
+          <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-200 bg-slate-50 shrink-0">
+            <div className="text-[11px] text-slate-500 font-medium hidden sm:block">
+              {canSubmit ? (
+                <span className="text-emerald-700 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Sẵn sàng ghi nhận vào sổ điểm
+                </span>
+              ) : (
+                <span className="text-amber-800 font-bold flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 text-amber-600" />
+                  Cần tài khoản phân quyền để lưu
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2.5 ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 rounded-xl transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className={`px-6 py-2.5 text-xs sm:text-sm font-black rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
+                  canSubmit
+                    ? 'text-white bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 hover:from-indigo-700 hover:to-blue-700 shadow-indigo-200'
+                    : 'text-slate-400 bg-slate-200 cursor-not-allowed shadow-none'
+                }`}
+                title={canSubmit ? 'Nhấn để lưu ghi nhận ngay' : 'Bạn chưa được phân quyền ghi nhận cho học sinh này'}
+              >
+                <Save className="w-4 h-4" />
+                <span>LƯU GHI NHẬN</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

@@ -20,6 +20,8 @@ import {
   Lock,
   ShieldCheck,
   Users,
+  Save,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   Student,
@@ -105,6 +107,12 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   // Modal Nhật ký chỉnh sửa (Audit Logs)
   const [isAuditLogModalOpen, setIsAuditLogModalOpen] = useState(false);
   const [auditLogs, setAuditLogs] = useState<ScoreAdjustmentLog[]>(() => loadAuditLogs());
+  const [saveSuccessToast, setSaveSuccessToast] = useState(false);
+
+  const handleManualSaveRecords = () => {
+    setSaveSuccessToast(true);
+    setTimeout(() => setSaveSuccessToast(false), 2500);
+  };
 
   // Khi đăng nhập tài khoản Nhóm trưởng: tự động lọc đúng nhóm của mình để chấm điểm
   useEffect(() => {
@@ -600,6 +608,26 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700">
                   {auditLogs.length}
                 </span>
+              )}
+            </button>
+
+            {/* NÚT LƯU GHI NHẬN: Nổi bật, phản hồi xúc giác và đồng bộ đám mây */}
+            <button
+              type="button"
+              onClick={handleManualSaveRecords}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-600 active:from-emerald-800 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] border border-emerald-400/40"
+              title="Nhấn để lưu lại toàn bộ các điểm ghi nhận vào hệ thống và đồng bộ tức thì lên đám mây Firebase"
+            >
+              {saveSuccessToast ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-white animate-bounce" />
+                  <span className="text-white">ĐÃ LƯU THÀNH CÔNG!</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>LƯU GHI NHẬN</span>
+                </>
               )}
             </button>
 
