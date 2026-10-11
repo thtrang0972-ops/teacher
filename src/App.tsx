@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Header } from './components/Header';
 import { GroupCompetitionView } from './components/GroupCompetitionView';
 import { WeeklyScoreTable } from './components/WeeklyScoreTable';
@@ -128,14 +128,21 @@ export default function App() {
   const [isEarlyWarningOpen, setIsEarlyWarningOpen] = useState(false);
   const [isChatAssistantOpen, setIsChatAssistantOpen] = useState(false);
 
-  // Lưu vào localStorage và tự động đẩy lên Firebase
+  const isFirstMount = useRef(true);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
+  // Lưu vào localStorage và tự động đẩy lên Firebase (chỉ khi dữ liệu thực sự đổi sau khi mount)
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
     if (!appState) return;
     saveAppState(appState);
     if (!isSyncingFromCloud) {
       const timeout = setTimeout(() => {
         syncToCloud(appState);
-      }, 300);
+      }, 400);
       return () => clearTimeout(timeout);
     }
   }, [appState]);
@@ -149,12 +156,13 @@ export default function App() {
         const cloudData = await res.json();
 
         if (!cloudData || !cloudData.appData) {
-          await syncToCloud(loadAppState() || resetToInitialData());
           return;
         }
 
-        if (cloudData.updatedAt && cloudData.updatedAt > lastSyncedTimestamp) {
-          lastSyncedTimestamp = cloudData.updatedAt;
+        // Khắc phục lệch đồng hồ (clock skew) giữa điện thoại và máy tính:
+        // Cập nhật khi có updatedAt khác mốc thời gian đã áp dụng gần nhất
+        if (!lastSyncedTimestamp || cloudData.updatedAt !== lastSyncedTimestamp) {
+          lastSyncedTimestamp = cloudData.updatedAt || Date.now();
           isSyncingFromCloud = true;
 
           const remote = cloudData.appData;
@@ -178,6 +186,29 @@ export default function App() {
               incomingAccounts
             );
 
+            // Gộp weeklyRecords an toàn: xử lý cả Firebase Array lẫn Object không bị mất tuần
+            const mergedWeeklyRecords: Record<number, Record<string, StudentWeeklyRecord>> = {
+              ...(safePrev.weeklyRecords || {}),
+            };
+
+            if (remote.weeklyRecords) {
+              const remoteEntries: [string | number, any][] = Array.isArray(remote.weeklyRecords)
+                ? (remote.weeklyRecords as any[])
+                    .map((r: any, i: number): [number, any] => [i, r])
+                    .filter((pair: [number, any]) => pair[1] != null)
+                : Object.entries(remote.weeklyRecords);
+
+              for (const [wId, recs] of remoteEntries) {
+                if (recs && typeof recs === 'object') {
+                  const numWId = Number(wId);
+                  mergedWeeklyRecords[numWId] = {
+                    ...(mergedWeeklyRecords[numWId] || {}),
+                    ...recs,
+                  };
+                }
+              }
+            }
+
             const merged: AppState = {
               ...safePrev,
               metadata: syncedMetadata,
@@ -185,9 +216,9 @@ export default function App() {
               weeks: Array.isArray(remote.weeks) ? remote.weeks : safePrev.weeks || [],
               currentWeekId: remote.currentWeekId ?? safePrev.currentWeekId,
               accounts: syncedAccounts,
-              weeklyRecords: remote.weeklyRecords || safePrev.weeklyRecords || {},
-              morningDutyRecords: Array.isArray(remote.morningDutyRecords) ? remote.morningDutyRecords : [],
-              afternoonRecords: Array.isArray(remote.afternoonRecords) ? remote.afternoonRecords : [],
+              weeklyRecords: mergedWeeklyRecords,
+              morningDutyRecords: Array.isArray(remote.morningDutyRecords) ? remote.morningDutyRecords : (safePrev.morningDutyRecords || []),
+              afternoonRecords: Array.isArray(remote.afternoonRecords) ? remote.afternoonRecords : (safePrev.afternoonRecords || []),
               weeklyRemarks: remote.weeklyRemarks || safePrev.weeklyRemarks || {},
             };
             saveAppState(merged);
@@ -215,7 +246,7 @@ export default function App() {
       if (!isSyncingFromCloud) {
         pullFromCloud();
       }
-    }, 3000);
+    }, 2500);
 
     return () => clearInterval(timer);
   }, []);
@@ -235,12 +266,97 @@ export default function App() {
     weeklyRemarks = {},
   } = appState || {};
 
-  // Tài khoản đang đăng nhập
-  const currentAccount =
-    !currentAccountId && currentUserRole === 'guest'
-      ? undefined
-      : accounts.find((a) => a.id === currentAccountId) ||
-        (currentUserRole !== 'guest' ? accounts.find((a) => a.role === currentUserRole) : undefined);
+  // Tài khoản đang đăng nhập (Tự động tổng hợp tài khoản học sinh, KHÔNG BAO GIỜ bị mất phiên khi đồng bộ)
+  const currentAccount = useMemo(() => {
+    if (!currentAccountId && currentUserRole === 'guest') {
+      return undefined;
+    }
+
+    // 1. Tìm trực tiếp trong danh sách accounts
+    const directMatch = accounts.find((a) => a.id === currentAccountId);
+    if (directMatch) return directMatch;
+
+    // 2. Nếu là tài khoản học sinh (acc-hs-...) hoặc ID học sinh
+    if (currentAccountId && (currentAccountId.startsWith('acc-hs-') || currentAccountId.startsWith('hs-'))) {
+      const studentId = currentAccountId.replace('acc-', '');
+      const s = students.find((st) => st.id === studentId);
+      if (s) {
+        return {
+          id: `acc-${s.id}`,
+          username: s.stt ? s.stt.toString() : s.id,
+          password: '123',
+          role: (s.isLeader ? `nhomTruong${s.groupId}` : 'hocSinh') as UserRoleType,
+          displayName: s.name,
+          title: s.role || (s.isLeader ? `Nhóm trưởng ${s.groupId}` : `Học sinh Nhóm ${s.groupId}`),
+          avatarIcon: s.isLeader ? '🚩' : '👤',
+          assignedGroupIds: [s.groupId],
+          description: `Học sinh ${s.name} - Nhóm ${s.groupId}`,
+        };
+      }
+    }
+
+    // 3. Fallback theo role
+    if (currentUserRole !== 'guest') {
+      const byRole = accounts.find((a) => a.role === currentUserRole);
+      if (byRole) return byRole;
+    }
+
+    return undefined;
+  }, [accounts, currentAccountId, currentUserRole, students]);
+
+  // Hàm ép đồng bộ dữ liệu tức thì (Force Refresh)
+  const handleForceSync = async () => {
+    setSyncFeedback('Đang đồng bộ...');
+    try {
+      const res = await fetch(`${activeFirebaseUrl}/cn_nenep_data.json`);
+      if (res.ok) {
+        const cloudData = await res.json();
+        if (cloudData?.appData) {
+          lastSyncedTimestamp = cloudData.updatedAt || Date.now();
+          const remote = cloudData.appData;
+          setAppState((prev) => {
+            const safePrev = prev || resetToInitialData();
+            const mergedWeeklyRecords: Record<number, Record<string, StudentWeeklyRecord>> = {
+              ...(safePrev.weeklyRecords || {}),
+            };
+            if (remote.weeklyRecords) {
+              const remoteEntries: [string | number, any][] = Array.isArray(remote.weeklyRecords)
+                ? (remote.weeklyRecords as any[])
+                    .map((r: any, i: number): [number, any] => [i, r])
+                    .filter((pair: [number, any]) => pair[1] != null)
+                : Object.entries(remote.weeklyRecords);
+              for (const [wId, recs] of remoteEntries) {
+                if (recs && typeof recs === 'object') {
+                  mergedWeeklyRecords[Number(wId)] = {
+                    ...(mergedWeeklyRecords[Number(wId)] || {}),
+                    ...recs,
+                  };
+                }
+              }
+            }
+            const nextState: AppState = {
+              ...safePrev,
+              metadata: remote.metadata || safePrev.metadata,
+              students: remote.students || safePrev.students,
+              weeklyRecords: mergedWeeklyRecords,
+              morningDutyRecords: Array.isArray(remote.morningDutyRecords) ? remote.morningDutyRecords : safePrev.morningDutyRecords,
+              afternoonRecords: Array.isArray(remote.afternoonRecords) ? remote.afternoonRecords : safePrev.afternoonRecords,
+              weeklyRemarks: remote.weeklyRemarks || safePrev.weeklyRemarks,
+            };
+            saveAppState(nextState);
+            return nextState;
+          });
+          setSyncFeedback('Đã đồng bộ xong! ✓');
+          setTimeout(() => setSyncFeedback(null), 2500);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setSyncFeedback('Đã kết nối');
+    setTimeout(() => setSyncFeedback(null), 2000);
+  };
 
   const handleLogout = () => {
     setAppState((prev) => {
@@ -381,13 +497,16 @@ export default function App() {
         ...updatedFields,
       };
 
-      return {
+      const nextState: AppState = {
         ...safePrev,
         weeklyRecords: {
           ...safePrev.weeklyRecords,
           [safePrev.currentWeekId]: weekRecs,
         },
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -473,7 +592,7 @@ export default function App() {
         newAfternoon.unshift(afternoonRec);
       }
 
-      return {
+      const nextState: AppState = {
         ...safePrev,
         weeklyRecords: {
           ...safePrev.weeklyRecords,
@@ -482,6 +601,9 @@ export default function App() {
         morningDutyRecords: newMorning,
         afternoonRecords: newAfternoon,
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -525,7 +647,7 @@ export default function App() {
 
       weekRecs[rec.studentId] = currentStudentRec;
 
-      return {
+      const nextState: AppState = {
         ...safePrev,
         weeklyRecords: {
           ...safePrev.weeklyRecords,
@@ -533,16 +655,22 @@ export default function App() {
         },
         morningDutyRecords: [newRecord, ...(safePrev.morningDutyRecords || [])],
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
   const handleDeleteMorningRecord = (id: string) => {
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
-      return {
+      const nextState: AppState = {
         ...safePrev,
         morningDutyRecords: (safePrev.morningDutyRecords || []).filter((r) => r.id !== id),
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -586,7 +714,7 @@ export default function App() {
 
       weekRecs[rec.studentId] = currentStudentRec;
 
-      return {
+      const nextState: AppState = {
         ...safePrev,
         weeklyRecords: {
           ...safePrev.weeklyRecords,
@@ -594,16 +722,22 @@ export default function App() {
         },
         afternoonRecords: [newRecord, ...(safePrev.afternoonRecords || [])],
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
   const handleDeleteAfternoonRecord = (id: string) => {
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
-      return {
+      const nextState: AppState = {
         ...safePrev,
         afternoonRecords: (safePrev.afternoonRecords || []).filter((r) => r.id !== id),
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -809,6 +943,40 @@ export default function App() {
     });
   };
 
+  const handleConfirmGroupSubmission = (groupId: number) => {
+    setAppState((prev) => {
+      const safePrev = prev || resetToInitialData();
+      const currentSubmissions = safePrev.metadata?.groupSubmissions || {};
+      const weekSubs = { ...(currentSubmissions[safePrev.currentWeekId] || {}) };
+      const nowStr =
+        new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
+        ' ' +
+        new Date().toLocaleDateString('vi-VN');
+
+      weekSubs[groupId] = {
+        confirmed: true,
+        confirmedAt: nowStr,
+        confirmedBy: currentAccount?.displayName || `Nhóm trưởng ${groupId}`,
+      };
+
+      const updatedMeta: ClassMetadata = {
+        ...safePrev.metadata,
+        groupSubmissions: {
+          ...currentSubmissions,
+          [safePrev.currentWeekId]: weekSubs,
+        },
+      };
+
+      const nextState: AppState = {
+        ...safePrev,
+        metadata: updatedMeta,
+      };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
+    });
+  };
+
   const handleSelectStudentForQuickEntry = (student: Student) => {
     setQuickEntryStudent(student);
     setIsQuickEntryOpen(true);
@@ -856,6 +1024,8 @@ export default function App() {
         weeks={weeks}
         currentWeekId={currentWeekId}
         currentAccount={currentAccount}
+        syncFeedback={syncFeedback}
+        onForceSync={handleForceSync}
         onSelectWeek={handleSelectWeek}
         onOpenQuickEntry={() => {
           setQuickEntryStudent(null);
@@ -893,8 +1063,12 @@ export default function App() {
           <GroupCompetitionView
             groups={groups}
             currentWeekName={currentWeek.name}
+            currentWeekId={currentWeekId}
             currentRole={currentUserRole}
             assignedGroupIds={currentAccount?.assignedGroupIds}
+            groupSubmissions={metadata.groupSubmissions}
+            onConfirmGroupSubmission={handleConfirmGroupSubmission}
+            groupLeaders={metadata.groupLeaders}
             onSelectStudent={handleSelectStudentForQuickEntry}
             onQuickRecordStudent={handleSelectStudentForQuickEntry}
             onOpenImportRoster={() => setIsImportModalOpen(true)}
@@ -921,6 +1095,7 @@ export default function App() {
                 ? handleOpenParentMessage
                 : undefined
             }
+            onSaveRecords={() => syncToCloud(appState, true)}
           />
         )}
 

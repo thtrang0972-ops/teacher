@@ -151,6 +151,7 @@ export interface ClassMetadata {
   laborViceMonitorName: string;   // Lớp phó Lao động: Bùi Quang Khải
   disciplineViceMonitorName: string;// Lớp phó Trật tự: Lê Hoàng Yến Nhi
   groupLeaders?: Record<number, string>; // Tên 6 nhóm trưởng (1 đến 6)
+  groupSubmissions?: Record<number, Record<number, { confirmed: boolean; confirmedAt: string; confirmedBy: string }>>; // Trạng thái nộp ghi nhận nề nếp tuần của 6 nhóm
   viceMonitorName?: string;       // Tương thích ngược
   academicYear: string;           // 2026 - 2027
 }

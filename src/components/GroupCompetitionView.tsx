@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Trophy,
   Medal,
@@ -19,17 +19,27 @@ import {
   Copy,
   Send,
   Check,
+  Eye,
+  CheckCircle,
 } from 'lucide-react';
 import { generateWeeklyComment } from '../services/aiService';
 import { GroupSummary, Student, StudentWeeklyRecord, UserRoleType } from '../types/discipline';
 import { canEditStudent } from '../utils/permissions';
 import { getClassificationColor } from '../utils/scoring';
+import { GroupLeaderTracker } from './GroupLeaderTracker';
 
 interface GroupCompetitionViewProps {
   groups: GroupSummary[];
   currentWeekName: string;
+  currentWeekId?: number;
   currentRole?: UserRoleType;
   assignedGroupIds?: number[];
+  groupSubmissions?: Record<
+    number,
+    Record<number, { confirmed: boolean; confirmedAt: string; confirmedBy: string }>
+  >;
+  onConfirmGroupSubmission?: (groupId: number) => void;
+  groupLeaders?: Record<number, string>;
   onSelectStudent: (student: Student) => void;
   onQuickRecordStudent: (student: Student) => void;
   onOpenAdjustScore?: (student?: Student) => void;
@@ -44,8 +54,12 @@ interface GroupCompetitionViewProps {
 export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
   groups = [],
   currentWeekName,
+  currentWeekId = 1,
   currentRole = 'guest',
   assignedGroupIds,
+  groupSubmissions,
+  onConfirmGroupSubmission,
+  groupLeaders,
   onSelectStudent,
   onQuickRecordStudent,
   onOpenAdjustScore,
@@ -56,7 +70,32 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
   teacherName,
   onOpenRoleRemarks,
 }) => {
-  const [selectedGroupId, setSelectedGroupId] = useState<number>(groups[0]?.groupId || 1);
+  // Mặc định chọn nhóm theo quyền tài khoản: nếu là Học sinh hoặc Nhóm trưởng thì tự động mở đúng nhóm mình phụ trách
+  const defaultGroup =
+    assignedGroupIds?.[0] ||
+    (currentRole.startsWith('nhomTruong')
+      ? parseInt(currentRole.replace('nhomTruong', ''), 10)
+      : groups[0]?.groupId || 1);
+  const [selectedGroupId, setSelectedGroupId] = useState<number>(defaultGroup);
+
+  // Tab di động: nếu là học sinh / nhóm trưởng thì mặc định xem ngay danh sách học sinh
+  const isStudentOrLeader =
+    currentRole === 'hocSinh' ||
+    currentRole.startsWith('nhomTruong') ||
+    (assignedGroupIds && assignedGroupIds.length > 0);
+  const [mobileTab, setMobileTab] = useState<'students' | 'overview'>(
+    isStudentOrLeader ? 'students' : 'overview'
+  );
+
+  // Khi tài khoản đăng nhập đổi (hoặc học sinh/nhóm trưởng vào xem), tự động chuyển đến nhóm của họ
+  useEffect(() => {
+    if (assignedGroupIds && assignedGroupIds.length > 0) {
+      setSelectedGroupId(assignedGroupIds[0]);
+    } else if (currentRole.startsWith('nhomTruong')) {
+      const g = parseInt(currentRole.replace('nhomTruong', ''), 10);
+      if (!isNaN(g)) setSelectedGroupId(g);
+    }
+  }, [currentRole, assignedGroupIds]);
 
   // Gemini AI Weekly Comment State
   const [aiComment, setAiComment] = useState('');
@@ -166,6 +205,63 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
           )}
         </div>
       )}
+
+      {/* THANH THÔNG BÁO DÀNH CHO HỌC SINH / NHÓM TRƯỞNG: NỔI BẬT, KHÔNG BAO GIỜ BỊ ẨN */}
+      {isStudentOrLeader && assignedGroupIds && assignedGroupIds.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white rounded-2xl p-4 shadow-md flex items-center justify-between gap-3 flex-wrap border border-blue-400/40 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center text-lg shadow-md shrink-0">
+              {assignedGroupIds[0]}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full shadow-2xs">
+                  {currentRole.startsWith('nhomTruong') ? 'Nhóm bạn phụ trách' : 'Nhóm của bạn'}
+                </span>
+                <span className="text-xs text-blue-200 font-semibold">
+                  Nhóm {assignedGroupIds[0]} · {groups.find(g => g.groupId === assignedGroupIds[0])?.memberCount || 0} học sinh
+                </span>
+              </div>
+              <h3 className="text-base font-black text-white mt-0.5">
+                {currentRole.startsWith('nhomTruong')
+                  ? `Bạn đang quản lý nề nếp Nhóm ${assignedGroupIds[0]}`
+                  : `Bạn đang theo dõi thi đua Nhóm ${assignedGroupIds[0]}`}
+              </h3>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedGroupId(assignedGroupIds[0]);
+                setMobileTab('students');
+              }}
+              className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Eye className="w-4 h-4" />
+              <span>Xem ngay danh sách Nhóm {assignedGroupIds[0]}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TIẾN ĐỘ GHI NHẬN CỦA 6 NHÓM TRƯỞNG (Dành cho GVCN và toàn lớp) */}
+      <GroupLeaderTracker
+        groups={groups}
+        currentWeekId={currentWeekId}
+        currentWeekName={currentWeekName}
+        currentRole={currentRole}
+        assignedGroupIds={assignedGroupIds}
+        groupSubmissions={groupSubmissions}
+        onConfirmGroupSubmission={onConfirmGroupSubmission}
+        onSelectGroup={(gId) => {
+          setSelectedGroupId(gId);
+          setMobileTab('students');
+        }}
+        groupLeaders={groupLeaders}
+        className={className}
+      />
 
       {/* Top Banner: Kết quả thi đua tuần - Nền trắng sáng, viền tinh tế */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm text-slate-900">
@@ -403,10 +499,38 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
         )}
       </div>
 
+      {/* Mobile Tab Switcher: Chuyển đổi siêu mượt giữa Danh sách học sinh & Bảng xếp hạng */}
+      <div className="lg:hidden flex items-center p-1 bg-slate-200/90 rounded-2xl mb-4 shadow-inner">
+        <button
+          type="button"
+          onClick={() => setMobileTab('students')}
+          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+            mobileTab === 'students'
+              ? 'bg-blue-700 text-white shadow-md'
+              : 'text-slate-700 hover:text-slate-900'
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>Học Sinh {activeGroup?.groupName} ({activeGroup?.memberCount} HS)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('overview')}
+          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+            mobileTab === 'overview'
+              ? 'bg-blue-700 text-white shadow-md'
+              : 'text-slate-700 hover:text-slate-900'
+          }`}
+        >
+          <Trophy className="w-3.5 h-3.5" />
+          <span>Bảng 6 Nhóm</span>
+        </button>
+      </div>
+
       {/* Main Grid: Bảng tổng hợp 6 nhóm (Left) + Chi tiết thành viên nhóm đang chọn (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Cột 1: Danh sách xếp hạng cả 6 nhóm */}
-        <div className="lg:col-span-5 space-y-3">
+        <div className={`lg:col-span-5 space-y-3 ${mobileTab === 'students' ? 'hidden lg:block' : 'block'}`}>
           <div className="flex items-center justify-between px-1">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span>Bảng Tổng Sắp 6 Nhóm</span>
@@ -496,7 +620,7 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
         </div>
 
         {/* Cột 2: Chi tiết học sinh của Nhóm đang chọn */}
-        <div className="lg:col-span-7">
+        <div className={`lg:col-span-7 ${mobileTab === 'overview' ? 'hidden lg:block' : 'block'}`}>
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4 text-slate-900">
             {/* Header chi tiết nhóm */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -589,8 +713,15 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {activeGroup.students.map((calc, idx) => {
-                    const clsColor = getClassificationColor(calc.classification);
+                  {(!activeGroup.students || activeGroup.students.length === 0) ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-slate-400">
+                        Chưa có học sinh nào trong {activeGroup.groupName}. Vui lòng tải file danh sách lớp hoặc thêm học sinh.
+                      </td>
+                    </tr>
+                  ) : (
+                    activeGroup.students.map((calc, idx) => {
+                      const clsColor = getClassificationColor(calc.classification);
                     return (
                       <tr key={calc.student.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-2.5 px-3 font-mono text-slate-400 tabular-nums">
@@ -667,7 +798,7 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
                         </td>
                       </tr>
                     );
-                  })}
+                  }))}
                 </tbody>
               </table>
             </div>

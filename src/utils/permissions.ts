@@ -440,7 +440,7 @@ export function determineStudentRole(
 
   if (isLeader) {
     return {
-      role: ('nhomTruong' + student.groupId),
+      role: (`nhomTruong${student.groupId}` as UserRoleType),
       title: 'Nhóm trưởng Nhóm ' + student.groupId,
       isOfficer: true,
       assignedGroupIds: [student.groupId],

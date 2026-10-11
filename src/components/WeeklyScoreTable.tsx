@@ -60,6 +60,7 @@ interface WeeklyScoreTableProps {
   onOpenAdjustScore?: (student?: Student) => void;
   onOpenParentMessage?: (student?: Student) => void;
   onOpenClassRoster?: () => void;
+  onSaveRecords?: () => void;
 }
 
 export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
@@ -78,6 +79,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   onOpenAdjustScore,
   onOpenParentMessage,
   onOpenClassRoster,
+  onSaveRecords,
 }) => {
   const isGVCN = currentRole === 'gvcn' || currentAccount?.role === 'gvcn';
   const [searchTerm, setSearchTerm] = useState('');
@@ -111,6 +113,9 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
 
   const handleManualSaveRecords = () => {
     setSaveSuccessToast(true);
+    if (onSaveRecords) {
+      onSaveRecords();
+    }
     setTimeout(() => setSaveSuccessToast(false), 2500);
   };
 
@@ -479,14 +484,46 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
               </button>
               {(() => {
                 const myGroup = assignedGroupIds?.[0] || (currentRole.startsWith('nhomTruong') ? parseInt(currentRole.replace('nhomTruong', ''), 10) : undefined);
+                const hasGroupRecorded = (gNum: number) => {
+                  const gStudents = students.filter((s) => s.groupId === gNum);
+                  return gStudents.some((s) => {
+                    const r = records[s.id];
+                    if (!r) return false;
+                    const total =
+                      (r.diTre || 0) +
+                      (r.nghiCP || 0) +
+                      (r.nghiKP || 0) +
+                      (r.boTiet || 0) +
+                      (r.ktbKlbKsb || 0) +
+                      (r.khongDongPhuc2 || 0) +
+                      (r.diemTot || 0) +
+                      (r.phatBieu || 0) +
+                      (r.khongDongPhuc5 || 0) +
+                      (r.matTratTu || 0) +
+                      (r.khongThamGiaVS || 0) +
+                      (r.noiTuc || 0) +
+                      (r.xaRac || 0) +
+                      (r.trucVSBan || 0) +
+                      (r.huHongTS || 0) +
+                      (r.voLeGV || 0) +
+                      (r.dungDienThoai || 0);
+                    return total > 0 || !!r.note;
+                  });
+                };
+
                 return [1, 2, 3, 4, 5, 6].map((g) => {
                   const isMyGroup = myGroup === g;
+                  const recorded = hasGroupRecorded(g);
                   return (
                     <button
                       key={g}
                       onClick={() => setSelectedGroupFilter(g)}
-                      title={isMyGroup ? `Nhóm ${g} (Bạn phụ trách ghi nhận & chấm điểm)` : `Nhóm ${g}`}
-                      className={`px-2 py-1 text-xs font-semibold rounded transition-colors flex items-center gap-0.5 cursor-pointer ${
+                      title={
+                        isMyGroup
+                          ? `Nhóm ${g} (Bạn phụ trách ghi nhận & chấm điểm) · ${recorded ? 'Đã ghi nhận' : 'Chưa ghi nhận'}`
+                          : `Nhóm ${g} · ${recorded ? 'Đã ghi nhận' : 'Chưa ghi nhận'}`
+                      }
+                      className={`px-2 py-1 text-xs font-semibold rounded transition-colors flex items-center gap-1 cursor-pointer ${
                         selectedGroupFilter === g
                           ? 'bg-white text-indigo-700 shadow-xs'
                           : isMyGroup
@@ -494,6 +531,11 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          recorded ? 'bg-emerald-500' : 'bg-slate-300'
+                        }`}
+                      />
                       <span>N{g}</span>
                       {isMyGroup && <span className="text-[10px] text-amber-500 font-black">★</span>}
                     </button>

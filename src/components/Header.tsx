@@ -22,6 +22,7 @@ import {
   Bot,
   LogOut,
   Zap,
+  RefreshCw,
 } from 'lucide-react';
 import { WeekInfo, ClassMetadata, UserAccount, Student } from '../types/discipline';
 import { ColorTheme } from '../types/theme';
@@ -36,6 +37,8 @@ interface HeaderProps {
   currentWeekId?: number;
   currentAccount?: UserAccount;
   currentTheme?: ColorTheme;
+  syncFeedback?: string | null;
+  onForceSync?: () => void;
   onSelectStudent?: (student: Student) => void;
   onSelectWeek?: (weekId: number) => void;
   onUpdateWeekDates?: (weekId: number, startDate: string, endDate: string) => void;
@@ -60,6 +63,8 @@ export const Header: React.FC<HeaderProps> = ({
   weeks = [],
   currentWeekId = 1,
   currentAccount,
+  syncFeedback,
+  onForceSync,
   onSelectStudent,
   onSelectWeek,
   onUpdateWeekDates,
@@ -260,8 +265,25 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Góc phải: Năm học & Học kỳ */}
-          <div className="flex items-center gap-2 shrink-0 ml-auto text-[11px] text-blue-200">
+          {/* Góc phải: Năm học & Học kỳ & Nút Đồng bộ tức thì */}
+          <div className="flex items-center gap-2 shrink-0 ml-auto text-[11px] text-blue-200 flex-wrap">
+            {onForceSync && (
+              <button
+                type="button"
+                onClick={onForceSync}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-950 hover:bg-blue-800 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Bấm để đồng bộ dữ liệu mới nhất tức thì từ Firebase"
+              >
+                <RefreshCw
+                  className={`w-3 h-3 ${
+                    syncFeedback?.includes('Đang')
+                      ? 'animate-spin text-amber-300'
+                      : 'text-emerald-400'
+                  }`}
+                />
+                <span>{syncFeedback || 'Đồng bộ đám mây'}</span>
+              </button>
+            )}
             <span className="bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-400/20 font-bold">
               Năm học {metadata?.academicYear || '2026 - 2027'}
             </span>

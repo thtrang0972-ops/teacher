@@ -255,6 +255,16 @@ export function syncRolesAndAccounts(
     return copy;
   });
 
+  // Giữ lại tất cả tài khoản học sinh cá nhân đã đăng nhập (tránh bị đồng bộ xóa mất)
+  const studentAccounts = accounts.filter(
+    (a) => a.id.startsWith('acc-hs-') || a.role === 'hocSinh'
+  );
+  for (const stAcc of studentAccounts) {
+    if (!syncedAccounts.some((a) => a.id === stAcc.id)) {
+      syncedAccounts.push(stAcc);
+    }
+  }
+
   return {
     syncedStudents,
     syncedMetadata,
