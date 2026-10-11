@@ -15,10 +15,13 @@ import {
   Upload,
   CheckCircle2,
   ShieldCheck,
+  Lock,
+  AlertCircle,
 } from 'lucide-react';
-import { Student, ClassMetadata, UserAccount } from '../types/discipline';
+import { Student, ClassMetadata, UserAccount, UserRoleType } from '../types/discipline';
 import { downloadSampleExcelTemplate, exportCurrentStudentsToExcel } from '../utils/excelImport';
 import { syncRolesAndAccounts } from '../utils/syncRoles';
+import { canManageGroupMembers } from '../utils/permissions';
 
 interface ClassRosterModalProps {
   isOpen: boolean;
@@ -26,6 +29,8 @@ interface ClassRosterModalProps {
   students: Student[];
   metadata: ClassMetadata;
   accounts?: UserAccount[];
+  currentRole?: UserRoleType;
+  assignedGroupIds?: number[];
   onUpdateMetadata: (meta: ClassMetadata) => void;
   onUpdateAccounts?: (accs: UserAccount[]) => void;
   onAddStudent: (student: Omit<Student, 'id' | 'stt'>) => void;
@@ -43,6 +48,8 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
   students,
   metadata,
   accounts = [],
+  currentRole = 'gvcn',
+  assignedGroupIds,
   onUpdateMetadata,
   onUpdateAccounts,
   onAddStudent,
@@ -53,9 +60,17 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
   onClearAllStudents,
   onSyncAllRoles,
 }) => {
-  const [selectedGroup, setSelectedGroup] = useState<number>(1);
+  const userMyGroup = assignedGroupIds?.[0] || (currentRole?.startsWith('nhomTruong') ? parseInt(currentRole.replace('nhomTruong', ''), 10) : undefined);
+  const [selectedGroup, setSelectedGroup] = useState<number>(userMyGroup || 1);
   const [isAddingStudent, setIsAddingStudent] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
+
+  const isAllowedToManageThisGroup = canManageGroupMembers(
+    currentRole,
+    selectedGroup,
+    assignedGroupIds
+  );
+  const isGvcnOrMonitor = currentRole === 'gvcn' || currentRole === 'lopTruong';
 
   // Chỉnh sửa tên trực tiếp
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
@@ -294,8 +309,8 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
                 </div>
               </div>
 
-              {/* Nút xóa sạch danh sách để đưa danh sách mới lên */}
-              {onClearAllStudents && students.length > 0 && (
+              {/* Nút xóa sạch danh sách để đưa danh sách mới lên (Chỉ GVCN và Lớp trưởng) */}
+              {isGvcnOrMonitor && onClearAllStudents && students.length > 0 && (
                 <div className="flex items-center justify-between px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl text-xs">
                   <span className="text-rose-900 font-semibold">
                     Đang có <strong>{students.length} học sinh</strong> trong danh sách. Muốn xóa sạch để nạp danh sách mới?
@@ -447,30 +462,57 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
               </div>
 
               {/* Chọn Nhóm 1 -> 6 */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
-                  {[1, 2, 3, 4, 5, 6].map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => setSelectedGroup(g)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
-                        selectedGroup === g
-                          ? 'bg-white text-indigo-700 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Nhóm {g} ({students.filter((s) => s.groupId === g).length})
-                    </button>
-                  ))}
-                </div>
+              <div className="space-y-2">
+                {!isAllowedToManageThisGroup && (
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>
+                      Chế độ chỉ xem đối với <strong>Nhóm {selectedGroup}</strong>. Bạn là{' '}
+                      <strong>Nhóm trưởng Nhóm {userMyGroup}</strong> nên chỉ có quyền thêm, sửa và xoá thành viên của{' '}
+                      <strong>Nhóm {userMyGroup}</strong>.
+                    </span>
+                  </div>
+                )}
 
-                <button
-                  onClick={() => setIsAddingStudent(!isAddingStudent)}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Thêm vào Nhóm {selectedGroup}</span>
-                </button>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg flex-wrap">
+                    {[1, 2, 3, 4, 5, 6].map((g) => {
+                      const isMyGroup = userMyGroup === g;
+                      return (
+                        <button
+                          key={g}
+                          onClick={() => setSelectedGroup(g)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded transition-colors flex items-center gap-1 cursor-pointer ${
+                            selectedGroup === g
+                              ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-indigo-200'
+                              : isMyGroup
+                              ? 'text-indigo-800 font-bold bg-indigo-100/70 hover:bg-indigo-200'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          <span>Nhóm {g} ({students.filter((s) => s.groupId === g).length})</span>
+                          {isMyGroup && <span className="text-[10px] text-amber-500 font-black">★ Nhóm bạn</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {isAllowedToManageThisGroup ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingStudent(!isAddingStudent)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>＋ Thêm vào Nhóm {selectedGroup}</span>
+                    </button>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-slate-400" />
+                      <span>Không có quyền sửa Nhóm {selectedGroup}</span>
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Form thêm học sinh mới */}
@@ -593,15 +635,17 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
                           ) : (
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-bold text-slate-900">{s.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleStartEditName(s)}
-                                className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 cursor-pointer transition-colors shadow-2xs"
-                                title="Bị sai tên học sinh? Bấm vào đây để sửa lại tên"
-                              >
-                                <Edit2 className="w-2.5 h-2.5 text-indigo-600" />
-                                <span>Sửa tên</span>
-                              </button>
+                              {isAllowedToManageThisGroup && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditName(s)}
+                                  className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 cursor-pointer transition-colors shadow-2xs"
+                                  title="Bị sai tên học sinh? Bấm vào đây để sửa lại tên"
+                                >
+                                  <Edit2 className="w-2.5 h-2.5 text-indigo-600" />
+                                  <span>Sửa tên</span>
+                                </button>
+                              )}
                               {s.isLeader && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-200">
                                   🚩 Nhóm trưởng N{s.groupId}
@@ -638,26 +682,32 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
                         <td className="py-2.5 px-3 text-slate-600">{s.gender}</td>
                         <td className="py-2.5 px-3">
                           <select
+                            disabled={!isAllowedToManageThisGroup}
                             value={s.isLeader ? 'Nhóm trưởng' : (s.role || 'Thành viên')}
                             onChange={(e) => handleRoleChange(s, e.target.value)}
-                            className="text-xs p-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                            className="text-xs p-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             <option value="Thành viên">Thành viên</option>
                             <option value="Nhóm trưởng">🚩 Nhóm trưởng</option>
-                            <option value="Lớp trưởng">🎖️ Lớp trưởng</option>
-                            <option value="Lớp phó Học tập">📚 LP Học tập</option>
-                            <option value="Lớp phó Lao động">🧹 LP Lao động</option>
-                            <option value="Lớp phó Trật tự">🛡️ LP Trật tự</option>
-                            <option value="Cờ đỏ">🚩 Cờ đỏ</option>
+                            {isGvcnOrMonitor && (
+                              <>
+                                <option value="Lớp trưởng">🎖️ Lớp trưởng</option>
+                                <option value="Lớp phó Học tập">📚 LP Học tập</option>
+                                <option value="Lớp phó Lao động">🧹 LP Lao động</option>
+                                <option value="Lớp phó Trật tự">🛡️ LP Trật tự</option>
+                                <option value="Cờ đỏ">🚩 Cờ đỏ</option>
+                              </>
+                            )}
                           </select>
                         </td>
                         <td className="py-2.5 px-3">
                           <select
+                            disabled={!isGvcnOrMonitor}
                             value={s.groupId}
                             onChange={(e) =>
                               onUpdateStudent(s.id, { groupId: Number(e.target.value) })
                             }
-                            className="text-xs p-1 border border-slate-200 rounded bg-white"
+                            className="text-xs p-1 border border-slate-200 rounded bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             {[1, 2, 3, 4, 5, 6].map((g) => (
                               <option key={g} value={g}>
@@ -667,32 +717,41 @@ export const ClassRosterModal: React.FC<ClassRosterModalProps> = ({
                           </select>
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          {confirmDeleteStudentId === s.id ? (
-                            <div className="flex items-center justify-center gap-1">
+                          {isAllowedToManageThisGroup ? (
+                            confirmDeleteStudentId === s.id ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onDeleteStudent(s.id);
+                                    setConfirmDeleteStudentId(null);
+                                  }}
+                                  className="px-1.5 py-0.5 bg-rose-600 text-white text-[10px] font-bold rounded cursor-pointer"
+                                >
+                                  Xóa
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteStudentId(null)}
+                                  className="px-1.5 py-0.5 bg-slate-200 text-slate-700 text-[10px] rounded cursor-pointer"
+                                >
+                                  Hủy
+                                </button>
+                              </div>
+                            ) : (
                               <button
-                                onClick={() => {
-                                  onDeleteStudent(s.id);
-                                  setConfirmDeleteStudentId(null);
-                                }}
-                                className="px-1.5 py-0.5 bg-rose-600 text-white text-[10px] font-bold rounded cursor-pointer"
+                                type="button"
+                                onClick={() => setConfirmDeleteStudentId(s.id)}
+                                className="text-slate-400 hover:text-rose-600 p-1 rounded cursor-pointer transition-colors"
+                                title={`Xóa bạn ${s.name} khỏi Nhóm ${s.groupId}`}
                               >
-                                Xóa
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={() => setConfirmDeleteStudentId(null)}
-                                className="px-1.5 py-0.5 bg-slate-200 text-slate-700 text-[10px] rounded cursor-pointer"
-                              >
-                                Hủy
-                              </button>
-                            </div>
+                            )
                           ) : (
-                            <button
-                              onClick={() => setConfirmDeleteStudentId(s.id)}
-                              className="text-slate-400 hover:text-rose-600 p-1 rounded cursor-pointer"
-                              title="Xóa học sinh"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <span className="text-slate-300" title="Chỉ Nhóm trưởng nhóm này hoặc GVCN mới có quyền xóa">
+                              <Lock className="w-3.5 h-3.5 mx-auto" />
+                            </span>
                           )}
                         </td>
                       </tr>

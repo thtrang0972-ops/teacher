@@ -20,6 +20,7 @@ import { AdjustScoreModal } from './components/AdjustScoreModal';
 import { AIParentMessageModal } from './components/AIParentMessageModal';
 import { AIEarlyWarningModal } from './components/AIEarlyWarningModal';
 import { AIChatAssistant } from './components/AIChatAssistant';
+import { CopyWeekDataModal } from './components/CopyWeekDataModal';
 
 import type {
   Student,
@@ -121,6 +122,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isQuickLoginOpen, setIsQuickLoginOpen] = useState(false);
   const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
+  const [isCopyWeekModalOpen, setIsCopyWeekModalOpen] = useState(false);
 
   // AI Features state
   const [isParentMessageOpen, setIsParentMessageOpen] = useState(false);
@@ -209,17 +211,44 @@ export default function App() {
               }
             }
 
+            // Đảm bảo dữ liệu tuần 6 được chuyển toàn bộ sang tuần 5 và bảo toàn nguyên vẹn
+            if (mergedWeeklyRecords[6] && Object.keys(mergedWeeklyRecords[6]).length > 0) {
+              mergedWeeklyRecords[5] = {
+                ...(mergedWeeklyRecords[5] || {}),
+                ...mergedWeeklyRecords[6],
+              };
+            }
+
+            const mergedRemarks = remote.weeklyRemarks || safePrev.weeklyRemarks || {};
+            if (mergedRemarks[6]) {
+              mergedRemarks[5] = {
+                ...(mergedRemarks[5] || {}),
+                ...mergedRemarks[6],
+              };
+            }
+
+            if (syncedMetadata.groupSubmissions?.[6]) {
+              syncedMetadata.groupSubmissions[5] = {
+                ...(syncedMetadata.groupSubmissions[5] || {}),
+                ...syncedMetadata.groupSubmissions[6],
+              };
+            }
+
+            const targetWeekId = (remote.currentWeekId === 6 || safePrev.currentWeekId === 6)
+              ? 5
+              : (remote.currentWeekId ?? safePrev.currentWeekId);
+
             const merged: AppState = {
               ...safePrev,
               metadata: syncedMetadata,
               students: syncedStudents,
               weeks: Array.isArray(remote.weeks) ? remote.weeks : safePrev.weeks || [],
-              currentWeekId: remote.currentWeekId ?? safePrev.currentWeekId,
+              currentWeekId: targetWeekId,
               accounts: syncedAccounts,
               weeklyRecords: mergedWeeklyRecords,
               morningDutyRecords: Array.isArray(remote.morningDutyRecords) ? remote.morningDutyRecords : (safePrev.morningDutyRecords || []),
               afternoonRecords: Array.isArray(remote.afternoonRecords) ? remote.afternoonRecords : (safePrev.afternoonRecords || []),
-              weeklyRemarks: remote.weeklyRemarks || safePrev.weeklyRemarks || {},
+              weeklyRemarks: mergedRemarks,
             };
             saveAppState(merged);
             if (hasLegacyMock) {
@@ -749,12 +778,15 @@ export default function App() {
         newMeta,
         safePrev.accounts || []
       );
-      return {
+      const nextState: AppState = {
         ...safePrev,
         metadata: syncedMetadata,
         students: syncedStudents,
         accounts: syncedAccounts,
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -766,12 +798,15 @@ export default function App() {
         safePrev.metadata,
         safePrev.accounts || []
       );
-      return {
+      const nextState: AppState = {
         ...safePrev,
         students: syncedStudents,
         metadata: syncedMetadata,
         accounts: syncedAccounts,
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -790,12 +825,15 @@ export default function App() {
         safePrev.metadata,
         safePrev.accounts || []
       );
-      return {
+      const nextState: AppState = {
         ...safePrev,
         students: syncedStudents,
         metadata: syncedMetadata,
         accounts: syncedAccounts,
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -808,12 +846,15 @@ export default function App() {
         safePrev.metadata,
         safePrev.accounts || []
       );
-      return {
+      const nextState: AppState = {
         ...safePrev,
         students: syncedStudents,
         metadata: syncedMetadata,
         accounts: syncedAccounts,
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -827,12 +868,15 @@ export default function App() {
         safePrev.metadata,
         safePrev.accounts || []
       );
-      return {
+      const nextState: AppState = {
         ...safePrev,
         students: syncedStudents,
         metadata: syncedMetadata,
         accounts: syncedAccounts,
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
@@ -977,6 +1021,55 @@ export default function App() {
     });
   };
 
+  const handleCopyWeekData = (
+    fromWeekId: number,
+    toWeekId: number,
+    options: {
+      copyRecords: boolean;
+      copySubmissions: boolean;
+      copyRemarks: boolean;
+      switchWeek: boolean;
+    }
+  ) => {
+    setAppState((prev) => {
+      const safePrev = prev || resetToInitialData();
+      let newWeeklyRecords = { ...safePrev.weeklyRecords };
+      if (options.copyRecords) {
+        const sourceRecords = safePrev.weeklyRecords[fromWeekId] || {};
+        newWeeklyRecords[toWeekId] = JSON.parse(JSON.stringify(sourceRecords));
+      }
+
+      let newMetadata = { ...safePrev.metadata };
+      if (options.copySubmissions) {
+        const subs = safePrev.metadata?.groupSubmissions || {};
+        const sourceSubs = subs[fromWeekId] || {};
+        newMetadata.groupSubmissions = {
+          ...subs,
+          [toWeekId]: JSON.parse(JSON.stringify(sourceSubs)),
+        };
+      }
+
+      let newRemarks = { ...safePrev.weeklyRemarks };
+      if (options.copyRemarks) {
+        const sourceRemarks = safePrev.weeklyRemarks[fromWeekId] || {};
+        newRemarks[toWeekId] = JSON.parse(JSON.stringify(sourceRemarks));
+      }
+
+      const nextWeekId = options.switchWeek ? toWeekId : safePrev.currentWeekId;
+      const nextState: AppState = {
+        ...safePrev,
+        currentWeekId: nextWeekId,
+        weeklyRecords: newWeeklyRecords,
+        weeklyRemarks: newRemarks,
+        metadata: newMetadata,
+      };
+
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
+    });
+  };
+
   const handleSelectStudentForQuickEntry = (student: Student) => {
     setQuickEntryStudent(student);
     setIsQuickEntryOpen(true);
@@ -1035,6 +1128,7 @@ export default function App() {
         onOpenImportRoster={() => setIsImportModalOpen(true)}
         onOpenSettings={() => setIsClassSettingsOpen(true)}
         onOpenPrint={() => setIsPrintOpen(true)}
+        onOpenCopyWeekData={() => setIsCopyWeekModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
         onOpenEarlyWarning={handleOpenEarlyWarning}
@@ -1071,6 +1165,9 @@ export default function App() {
             groupLeaders={metadata.groupLeaders}
             onSelectStudent={handleSelectStudentForQuickEntry}
             onQuickRecordStudent={handleSelectStudentForQuickEntry}
+            onAddStudent={handleAddStudent}
+            onDeleteStudent={handleDeleteStudent}
+            onOpenClassRoster={() => setIsClassRosterOpen(true)}
             onOpenImportRoster={() => setIsImportModalOpen(true)}
             className={metadata.className}
             teacherName={metadata.homeroomTeacher}
@@ -1088,6 +1185,9 @@ export default function App() {
             currentRole={currentUserRole}
             assignedGroupIds={currentAccount?.assignedGroupIds}
             currentAccount={currentAccount}
+            groupSubmissions={metadata.groupSubmissions}
+            groupLeaders={metadata.groupLeaders}
+            groups={groups}
             onUpdateRecord={handleUpdateRecord}
             onQuickRecordStudent={handleSelectStudentForQuickEntry}
             onOpenParentMessage={
@@ -1133,6 +1233,9 @@ export default function App() {
             currentWeek={currentWeek}
             metadata={metadata}
             onOpenPrint={() => setIsPrintOpen(true)}
+            teacherGroupNotes={weeklyRemarks[currentWeekId]?.teacherGroupNotes}
+            officerRemarks={weeklyRemarks[currentWeekId]?.officerRemarks}
+            groupRemarks={weeklyRemarks[currentWeekId]?.groupRemarks}
           />
         )}
       </main>
@@ -1158,6 +1261,8 @@ export default function App() {
         students={students}
         metadata={metadata}
         accounts={accounts}
+        currentRole={currentUserRole}
+        assignedGroupIds={currentAccount?.assignedGroupIds}
         onUpdateMetadata={handleUpdateMetadata}
         onUpdateAccounts={handleUpdateAccounts}
         onAddStudent={handleAddStudent}
@@ -1185,6 +1290,14 @@ export default function App() {
         records={currentRecords}
         groups={groups}
         remarks={weeklyRemarks[currentWeekId]}
+      />
+
+      <CopyWeekDataModal
+        isOpen={isCopyWeekModalOpen}
+        onClose={() => setIsCopyWeekModalOpen(false)}
+        weeks={weeks}
+        currentWeekId={currentWeekId}
+        onCopyWeekData={handleCopyWeekData}
       />
 
       <RoleRemarksModal

@@ -21,10 +21,16 @@ import {
   Check,
   Eye,
   CheckCircle,
+  Trash2,
+  UserPlus,
+  Plus,
+  X,
+  Lock,
+  Users,
 } from 'lucide-react';
 import { generateWeeklyComment } from '../services/aiService';
 import { GroupSummary, Student, StudentWeeklyRecord, UserRoleType } from '../types/discipline';
-import { canEditStudent } from '../utils/permissions';
+import { canEditStudent, canManageGroupMembers } from '../utils/permissions';
 import { getClassificationColor } from '../utils/scoring';
 import { GroupLeaderTracker } from './GroupLeaderTracker';
 
@@ -43,6 +49,9 @@ interface GroupCompetitionViewProps {
   onSelectStudent: (student: Student) => void;
   onQuickRecordStudent: (student: Student) => void;
   onOpenAdjustScore?: (student?: Student) => void;
+  onAddStudent?: (student: Omit<Student, 'id' | 'stt'>) => void;
+  onDeleteStudent?: (id: string) => void;
+  onOpenClassRoster?: () => void;
   onOpenImportRoster?: () => void;
   teacherGroupNotes?: Record<number, string>;
   onOpenTeacherNotesModal?: () => void;
@@ -63,6 +72,9 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
   onSelectStudent,
   onQuickRecordStudent,
   onOpenAdjustScore,
+  onAddStudent,
+  onDeleteStudent,
+  onOpenClassRoster,
   onOpenImportRoster,
   teacherGroupNotes,
   onOpenTeacherNotesModal,
@@ -77,6 +89,14 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
       ? parseInt(currentRole.replace('nhomTruong', ''), 10)
       : groups[0]?.groupId || 1);
   const [selectedGroupId, setSelectedGroupId] = useState<number>(defaultGroup);
+
+  // Trạng thái thêm / xoá học sinh
+  const [isAddingStudent, setIsAddingStudent] = useState(false);
+  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentGender, setNewStudentGender] = useState<'Nam' | 'Nữ'>('Nam');
+  const [newStudentRole, setNewStudentRole] = useState<'Thành viên' | 'Nhóm trưởng'>('Thành viên');
+  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
+  const [actionSuccessNotice, setActionSuccessNotice] = useState<string | null>(null);
 
   // Tab di động: nếu là học sinh / nhóm trưởng thì mặc định xem ngay danh sách học sinh
   const isStudentOrLeader =
@@ -135,6 +155,38 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
   // Nhóm được chọn để xem chi tiết
   const activeGroup = (groups || []).find((g) => g.groupId === selectedGroupId) || groups[0];
   const activeGroupNote = teacherGroupNotes?.[activeGroup?.groupId]?.trim();
+
+  // Kiểm tra quyền quản lý thành viên (thêm/xoá) nhóm đang chọn
+  const canManageThisGroup = activeGroup
+    ? canManageGroupMembers(currentRole, activeGroup.groupId, assignedGroupIds)
+    : false;
+
+  const handleAddNewStudentToGroup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStudentName.trim() || !onAddStudent || !activeGroup) return;
+    const isLeader = newStudentRole === 'Nhóm trưởng';
+    onAddStudent({
+      name: newStudentName.trim(),
+      gender: newStudentGender,
+      groupId: activeGroup.groupId,
+      role: isLeader ? 'Nhóm trưởng' : undefined,
+      isLeader,
+    });
+    const addedName = newStudentName.trim();
+    setNewStudentName('');
+    setNewStudentRole('Thành viên');
+    setIsAddingStudent(false);
+    setActionSuccessNotice(`Đã thêm bạn "${addedName}" vào ${activeGroup.groupName}!`);
+    setTimeout(() => setActionSuccessNotice(null), 3000);
+  };
+
+  const handleConfirmDeleteStudent = (studentId: string, studentName: string) => {
+    if (!onDeleteStudent || !activeGroup) return;
+    onDeleteStudent(studentId);
+    setDeletingStudentId(null);
+    setActionSuccessNotice(`Đã xoá bạn "${studentName}" khỏi ${activeGroup.groupName}!`);
+    setTimeout(() => setActionSuccessNotice(null), 3000);
+  };
 
   const totalMembers = (groups || []).reduce((sum, g) => sum + (g.memberCount || 0), 0);
 
@@ -697,6 +749,158 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
               </div>
             ) : null}
 
+            {/* Thông báo thao tác thành viên */}
+            {actionSuccessNotice && (
+              <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{actionSuccessNotice}</span>
+              </div>
+            )}
+
+            {/* KHỐI QUẢN LÝ THÀNH VIÊN NHÓM: Dành cho Nhóm trưởng phụ trách nhóm này và GVCN */}
+            {canManageThisGroup ? (
+              <div className="p-3.5 bg-gradient-to-r from-indigo-50/90 via-sky-50/80 to-blue-50/90 border border-indigo-200 rounded-2xl space-y-3 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] uppercase font-black bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded-full border border-indigo-200">
+                          {currentRole.startsWith('nhomTruong') ? `Quyền Nhóm trưởng Nhóm ${activeGroup.groupId}` : 'Quản trị viên'}
+                        </span>
+                        <h4 className="text-xs font-black text-slate-900">
+                          Quản lý thành viên {activeGroup.groupName}
+                        </h4>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        {currentRole.startsWith('nhomTruong')
+                          ? `Bạn là Nhóm trưởng: Có toàn quyền thêm học sinh mới hoặc xoá thành viên của ${activeGroup.groupName}.`
+                          : `GVCN & Lớp trưởng: Toàn quyền thêm, chỉnh sửa hoặc xoá thành viên ${activeGroup.groupName}.`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingStudent(!isAddingStudent)}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{isAddingStudent ? 'Đóng form thêm' : `+ Thêm học sinh vào ${activeGroup.groupName}`}</span>
+                    </button>
+
+                    {onOpenClassRoster && (
+                      <button
+                        type="button"
+                        onClick={onOpenClassRoster}
+                        className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold shadow-2xs cursor-pointer inline-flex items-center gap-1 transition-all"
+                        title="Mở bảng phân chia thành viên cả 6 nhóm"
+                      >
+                        <Users className="w-3.5 h-3.5 text-slate-500" />
+                        <span className="hidden sm:inline">Phân chia 6 nhóm</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Form thêm nhanh học sinh vào nhóm */}
+                {isAddingStudent && (
+                  <form
+                    onSubmit={handleAddNewStudentToGroup}
+                    className="p-3.5 bg-white border border-indigo-300 rounded-xl shadow-xs space-y-3 animate-in fade-in"
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <h5 className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                        <UserPlus className="w-4 h-4 text-indigo-600" />
+                        <span>Thêm thành viên mới vào {activeGroup.groupName}</span>
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingStudent(false)}
+                        className="text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          Họ và tên học sinh <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          autoFocus
+                          value={newStudentName}
+                          onChange={(e) => setNewStudentName(e.target.value)}
+                          placeholder="Ví dụ: Nguyễn Văn Hoàng"
+                          className="w-full text-xs p-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Giới tính
+                          </label>
+                          <select
+                            value={newStudentGender}
+                            onChange={(e) => setNewStudentGender(e.target.value as 'Nam' | 'Nữ')}
+                            className="w-full text-xs p-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                          >
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Vai trò
+                          </label>
+                          <select
+                            value={newStudentRole}
+                            onChange={(e) => setNewStudentRole(e.target.value as 'Thành viên' | 'Nhóm trưởng')}
+                            className="w-full text-xs p-2 bg-slate-50 focus:bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                          >
+                            <option value="Thành viên">Thành viên</option>
+                            <option value="Nhóm trưởng">🚩 Nhóm trưởng</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end items-center gap-2 pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingStudent(false)}
+                        className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg font-medium cursor-pointer"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Lưu vào {activeGroup.groupName}</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ) : currentRole.startsWith('nhomTruong') ? (
+              <div className="p-3 bg-amber-50/80 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center gap-2">
+                <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  Bạn đang xem <strong>{activeGroup.groupName}</strong>. Bạn là <strong>Nhóm trưởng Nhóm {assignedGroupIds?.[0] || currentRole.replace('nhomTruong', '')}</strong> nên chỉ có quyền thêm và xoá thành viên của <strong>Nhóm {assignedGroupIds?.[0] || currentRole.replace('nhomTruong', '')}</strong>.
+                </span>
+              </div>
+            ) : null}
+
             {/* Bảng danh sách thành viên trong nhóm */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
@@ -709,14 +913,14 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
                     <th className="py-2.5 px-2 text-center text-emerald-600">Cộng</th>
                     <th className="py-2.5 px-3 text-right">Tổng điểm</th>
                     <th className="py-2.5 px-3 text-center">Xếp loại</th>
-                    <th className="py-2.5 px-2 text-center">Tác vụ</th>
+                    <th className="py-2.5 px-3 text-center">Tác vụ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {(!activeGroup.students || activeGroup.students.length === 0) ? (
                     <tr>
                       <td colSpan={8} className="py-6 text-center text-slate-400">
-                        Chưa có học sinh nào trong {activeGroup.groupName}. Vui lòng tải file danh sách lớp hoặc thêm học sinh.
+                        Chưa có học sinh nào trong {activeGroup.groupName}. Vui lòng bấm "+ Thêm học sinh" ở trên hoặc tải file danh sách lớp.
                       </td>
                     </tr>
                   ) : (
@@ -785,6 +989,7 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
                                 Xem điểm
                               </button>
                             )}
+
                             {onOpenAdjustScore && (
                               <button
                                 onClick={() => onOpenAdjustScore(calc.student)}
@@ -793,6 +998,38 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
                               >
                                 Sửa điểm
                               </button>
+                            )}
+
+                            {/* Nút Xoá thành viên khỏi nhóm: Dành cho Nhóm trưởng phụ trách nhóm này hoặc GVCN */}
+                            {canManageThisGroup && (
+                              deletingStudentId === calc.student.id ? (
+                                <div className="inline-flex items-center gap-1 bg-rose-50 p-0.5 rounded-lg border border-rose-200 animate-in fade-in">
+                                  <span className="text-[10px] font-bold text-rose-700 pl-1">Xóa?</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleConfirmDeleteStudent(calc.student.id, calc.student.name)}
+                                    className="px-1.5 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold cursor-pointer"
+                                  >
+                                    Đúng
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeletingStudentId(null)}
+                                    className="px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-semibold cursor-pointer"
+                                  >
+                                    Hủy
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingStudentId(calc.student.id)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title={`Xoá bạn ${calc.student.name} khỏi ${activeGroup.groupName}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )
                             )}
                           </div>
                         </td>

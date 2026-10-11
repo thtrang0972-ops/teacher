@@ -63,6 +63,33 @@ export function canEditStudent(
 }
 
 /**
+ * Kiểm tra xem vai trò hiện tại có được phép thêm/xoá thành viên trong nhóm không:
+ * - GVCN và Lớp trưởng: Được thêm/xoá thành viên ở bất kỳ nhóm nào (1 -> 6).
+ * - Nhóm trưởng (Nhóm 1 -> 6): Quản lý nhóm nào thì được phép thêm và xoá thành viên của chính nhóm đó.
+ * - Các vai trò khác (học sinh, khách, lớp phó không phụ trách nhóm): Không được phép.
+ */
+export function canManageGroupMembers(
+  role: UserRoleType,
+  targetGroupId: number,
+  assignedGroupIds?: number[]
+): boolean {
+  if (role === 'guest' || role === 'hocSinh') {
+    return false;
+  }
+  if (role === 'gvcn' || role === 'lopTruong') {
+    return true;
+  }
+  if (role.startsWith('nhomTruong')) {
+    if (assignedGroupIds && assignedGroupIds.length > 0) {
+      return assignedGroupIds.includes(targetGroupId);
+    }
+    const defaultGroup = parseInt(role.replace('nhomTruong', ''), 10);
+    return targetGroupId === defaultGroup;
+  }
+  return false;
+}
+
+/**
  * Kiểm tra xem vai trò hiện tại có được phép ghi nhận/sửa tiêu chí nề nếp này không
  */
 export function canEditCriterion(

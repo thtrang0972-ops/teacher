@@ -57,6 +57,12 @@ interface WeeklyScoreTableProps {
   onUpdateStudent?: (studentId: string, updatedFields: Partial<Student>) => void;
   onQuickRecordStudent: (student: Student) => void;
   onOpenQuickEntry?: () => void;
+  groupSubmissions?: Record<
+    number,
+    Record<number, { confirmed: boolean; confirmedAt: string; confirmedBy: string }>
+  >;
+  groupLeaders?: Record<number, string>;
+  groups?: import('../types/discipline').GroupSummary[];
   onOpenAdjustScore?: (student?: Student) => void;
   onOpenParentMessage?: (student?: Student) => void;
   onOpenClassRoster?: () => void;
@@ -72,6 +78,9 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   currentRole = 'gvcn',
   assignedGroupIds,
   currentAccount,
+  groupSubmissions,
+  groupLeaders,
+  groups,
   onUpdateRecord,
   onUpdateStudent,
   onQuickRecordStudent,
@@ -425,6 +434,111 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
           </div>
         );
       })()}
+
+      {/* TIẾN ĐỘ GHI NHẬN NỀ NẾP 6 NHÓM TRƯỞNG TUẦN NÀY (Dành cho GVCN và Ban cán sự) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+              Tiến Độ Ghi Nhận Nề Nếp 6 Nhóm Trưởng · {currentWeekName}
+            </h3>
+          </div>
+          <span className="text-[11px] text-slate-500">
+            Bấm vào từng nhóm để lọc xem học sinh nhóm đó
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2.5">
+          {[1, 2, 3, 4, 5, 6].map((gId) => {
+            const leaderName =
+              groupLeaders?.[gId] ||
+              groups?.find((g) => g.groupId === gId)?.leaderName ||
+              `Nhóm trưởng ${gId}`;
+            const gStudents = students.filter((s) => s.groupId === gId);
+            let vCount = 0;
+            let bCount = 0;
+            gStudents.forEach((s) => {
+              const r = records[s.id];
+              if (r) {
+                const p =
+                  (r.diTre || 0) +
+                  (r.nghiCP || 0) +
+                  (r.nghiKP || 0) +
+                  (r.boTiet || 0) +
+                  (r.ktbKlbKsb || 0) +
+                  (r.khongDongPhuc2 || 0) +
+                  (r.khongDongPhuc5 || 0) +
+                  (r.matTratTu || 0) +
+                  (r.khongThamGiaVS || 0) +
+                  (r.noiTuc || 0) +
+                  (r.xaRac || 0) +
+                  (r.trucVSBan || 0) +
+                  (r.huHongTS || 0) +
+                  (r.voLeGV || 0) +
+                  (r.dungDienThoai || 0);
+                vCount += p;
+                bCount += (r.diemTot || 0) + (r.phatBieu || 0);
+              }
+            });
+
+            const submission = groupSubmissions?.[currentWeekId]?.[gId];
+            const hasRecorded = vCount > 0 || bCount > 0 || !!submission?.confirmed;
+            const isConfirmed = !!submission?.confirmed;
+            const isSelected = selectedGroupFilter === gId;
+
+            return (
+              <button
+                key={gId}
+                type="button"
+                onClick={() =>
+                  setSelectedGroupFilter(selectedGroupFilter === gId ? 'ALL' : gId)
+                }
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  isSelected
+                    ? 'bg-blue-50/90 border-blue-500 ring-2 ring-blue-500/20 shadow-xs'
+                    : isConfirmed
+                    ? 'bg-emerald-50/60 hover:bg-emerald-50 border-emerald-300'
+                    : hasRecorded
+                    ? 'bg-sky-50/50 hover:bg-sky-50 border-sky-200'
+                    : 'bg-amber-50/50 hover:bg-amber-50 border-amber-200'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-bold text-xs text-slate-900">Nhóm {gId}</span>
+                  {isConfirmed ? (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full border border-emerald-200">
+                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                      <span>Đã nộp</span>
+                    </span>
+                  ) : hasRecorded ? (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded-full border border-sky-200">
+                      <span>Đã ghi</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300">
+                      <span>Chưa ghi</span>
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-slate-500 truncate mt-1" title={leaderName}>
+                  NT: <strong className="text-slate-700">{leaderName}</strong>
+                </p>
+
+                <div className="mt-1 text-[10px] font-medium flex items-center justify-between">
+                  <span className={vCount > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}>
+                    {vCount > 0 ? `${vCount} vi phạm` : '0 lỗi'}
+                  </span>
+                  {bCount > 0 && (
+                    <span className="text-emerald-600 font-bold">+{bCount}đ</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Top Filter and Toolbar */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">

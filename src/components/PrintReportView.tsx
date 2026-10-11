@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Printer, Download } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Printer, Download, FileText, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 import {
   Student,
   StudentWeeklyRecord,
@@ -10,6 +10,7 @@ import {
 } from '../types/discipline';
 import { calculateStudentScore } from '../utils/scoring';
 import { formatDateVN, formatFullTextDateVN } from '../utils/date';
+import { exportWeeklyReportToExcel, exportWeeklyReportToWord } from '../utils/reportExport';
 
 interface PrintReportViewProps {
   isOpen: boolean;
@@ -32,10 +33,38 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
   groups,
   remarks,
 }) => {
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportWord = () => {
+    exportWeeklyReportToWord({
+      metadata,
+      currentWeek,
+      students,
+      records,
+      groups,
+      remarks,
+    });
+    setExportNotice('Đã xuất báo cáo ra file Word (.doc) thành công!');
+    setTimeout(() => setExportNotice(null), 3000);
+  };
+
+  const handleExportExcel = () => {
+    exportWeeklyReportToExcel({
+      metadata,
+      currentWeek,
+      students,
+      records,
+      groups,
+      remarks,
+    });
+    setExportNotice('Đã xuất báo cáo ra file Excel (.xlsx) 3 Sheet thành công!');
+    setTimeout(() => setExportNotice(null), 3000);
   };
 
   const calculatedList = students.map((s) => calculateStudentScore(s, records[s.id]));
@@ -43,20 +72,56 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 p-4 sm:p-6 flex flex-col items-center">
       {/* Floating Action Controls */}
-      <div className="sticky top-2 z-50 mb-4 bg-white px-4 py-2.5 rounded-xl shadow-lg border border-slate-200 flex items-center gap-3 print:hidden">
-        <span className="text-xs font-bold text-slate-700">
-          Xem trước bản in A4 · {currentWeek.name}
+      <div className="sticky top-2 z-50 mb-4 bg-white px-4 py-2.5 rounded-2xl shadow-xl border border-slate-200 flex items-center gap-2.5 flex-wrap print:hidden animate-in fade-in">
+        <span className="text-xs font-bold text-slate-800 pr-2 border-r border-slate-200">
+          Xuất báo cáo · {currentWeek.name}
         </span>
+
+        {/* Nút Xuất Word */}
         <button
+          type="button"
+          onClick={handleExportWord}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-xs transition-colors cursor-pointer"
+          title="Tải về file Microsoft Word (.doc) chuẩn văn bản hành chính"
+        >
+          <FileText className="w-4 h-4" />
+          <span>Xuất Word (.doc)</span>
+        </button>
+
+        {/* Nút Xuất Excel */}
+        <button
+          type="button"
+          onClick={handleExportExcel}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl shadow-xs transition-colors cursor-pointer"
+          title="Tải về file Excel (.xlsx) gồm 3 Sheet: 6 Nhóm, Sổ chi tiết, Nhận xét"
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+          <span>Xuất Excel (.xlsx)</span>
+        </button>
+
+        {/* Nút In / Lưu PDF */}
+        <button
+          type="button"
           onClick={handlePrint}
-          className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-xs transition-colors cursor-pointer"
+          title="In ra máy in hoặc Lưu dưới dạng PDF chuẩn khổ giấy A4"
         >
           <Printer className="w-4 h-4" />
           <span>In Báo Cáo / Lưu PDF</span>
         </button>
+
+        {exportNotice && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{exportNotice}</span>
+          </span>
+        )}
+
         <button
+          type="button"
           onClick={onClose}
-          className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors ml-auto cursor-pointer"
+          title="Đóng cửa sổ"
         >
           <X className="w-5 h-5" />
         </button>

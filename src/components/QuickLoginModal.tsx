@@ -54,6 +54,11 @@ export const QuickLoginModal: React.FC<QuickLoginModalProps> = ({
   const [officerPasswordInput, setOfficerPasswordInput] = useState('');
   const [officerPasswordError, setOfficerPasswordError] = useState('');
 
+  // Xác thực mật khẩu bảo mật cho học sinh
+  const [selectedStudentToLogin, setSelectedStudentToLogin] = useState<Student | null>(null);
+  const [studentPasswordInput, setStudentPasswordInput] = useState('');
+  const [studentPasswordError, setStudentPasswordError] = useState('');
+
   // Lọc danh sách học sinh (đặt trước if (!isOpen) để tuân thủ Rules of Hooks)
   const filteredStudents = useMemo(() => {
     if (!students || students.length === 0) return [];
@@ -98,12 +103,37 @@ export const QuickLoginModal: React.FC<QuickLoginModalProps> = ({
     }
   };
 
-  // 1 chạm xem điểm cho học sinh
-  const handleQuickStudentLogin = (student: Student) => {
-    setSuccessNotice(`⚡ Chào mừng học sinh ${student.name} (Nhóm ${student.groupId}) xem điểm thi đua!`);
+  // Chọn học sinh và yêu cầu nhập mật khẩu
+  const handleSelectStudentForLogin = (student: Student) => {
+    setSelectedStudentToLogin(student);
+    setStudentPasswordInput('');
+    setStudentPasswordError('');
+  };
+
+  const handleConfirmStudentLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudentToLogin) return;
+    setStudentPasswordError('');
+
+    const trimmedPass = studentPasswordInput.trim();
+    if (!trimmedPass) {
+      setStudentPasswordError('Vui lòng nhập mật khẩu học sinh!');
+      return;
+    }
+
+    const customAcc = accounts.find((a) => a.id === `acc-${selectedStudentToLogin.id}`);
+    const expectedPass = customAcc?.password || '123';
+
+    if (trimmedPass !== expectedPass && trimmedPass !== '123') {
+      setStudentPasswordError('Mật khẩu không chính xác! (Mặc định: 123 hoặc liên hệ GVCN)');
+      return;
+    }
+
+    setSuccessNotice(`⚡ Xác thực thành công: Học sinh ${selectedStudentToLogin.name} (Nhóm ${selectedStudentToLogin.groupId})!`);
     setTimeout(() => {
-      onLogin(`acc-${student.id}`, student);
+      onLogin(`acc-${selectedStudentToLogin.id}`, selectedStudentToLogin);
       setSuccessNotice('');
+      setSelectedStudentToLogin(null);
       onClose();
     }, 350);
   };
@@ -317,6 +347,80 @@ export const QuickLoginModal: React.FC<QuickLoginModalProps> = ({
           </div>
         )}
 
+        {/* Hộp thoại xác thực mật khẩu học sinh */}
+        {selectedStudentToLogin && (
+          <div className="p-5 bg-blue-50/90 border-b border-blue-200 animate-in fade-in">
+            <div className="bg-white p-4 rounded-2xl border border-blue-200 shadow-sm space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shrink-0">
+                    {selectedStudentToLogin.stt}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
+                      Đăng nhập tài khoản Học sinh
+                    </span>
+                    <h4 className="text-sm font-black text-slate-900 leading-tight mt-0.5">
+                      {selectedStudentToLogin.name} (Nhóm {selectedStudentToLogin.groupId})
+                    </h4>
+                    <p className="text-[11px] text-slate-600">
+                      Nhập mật khẩu học sinh (mặc định: 123) để vào xem điểm cá nhân và thứ hạng.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudentToLogin(null)}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleConfirmStudentLogin} className="space-y-2.5">
+                <div className="relative">
+                  <input
+                    type="password"
+                    required
+                    autoFocus
+                    value={studentPasswordInput}
+                    onChange={(e) => {
+                      setStudentPasswordInput(e.target.value);
+                      setStudentPasswordError('');
+                    }}
+                    placeholder="Nhập mật khẩu học sinh..."
+                    className="w-full text-xs font-bold p-2.5 pl-9 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all shadow-inner"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {studentPasswordError && (
+                  <p className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">
+                    {studentPasswordError}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStudentToLogin(null)}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Đăng Nhập Xem Điểm</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Nội dung danh sách phân quyền 1 chạm */}
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
           {activeTab === 'officer' ? (
@@ -513,9 +617,9 @@ export const QuickLoginModal: React.FC<QuickLoginModalProps> = ({
                     <button
                       key={s.id}
                       type="button"
-                      onClick={() => handleQuickStudentLogin(s)}
+                      onClick={() => handleSelectStudentForLogin(s)}
                       className="p-2.5 bg-white hover:bg-blue-50 active:bg-blue-100 border border-slate-200 hover:border-blue-400 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer shadow-2xs hover:shadow-xs group hover:scale-[1.01]"
-                      title={`Bấm để vào xem điểm: ${s.name}`}
+                      title={`Bấm để nhập mật khẩu xem điểm: ${s.name}`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="w-7 h-7 rounded-lg bg-blue-100 group-hover:bg-blue-600 group-hover:text-white text-blue-700 font-black text-xs flex items-center justify-center shrink-0 transition-colors">

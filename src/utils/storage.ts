@@ -86,7 +86,9 @@ export function loadAppState(): AppState {
     }
 
     const weeks: WeekInfo[] = rawWeeks ? JSON.parse(rawWeeks) : INITIAL_WEEKS;
-    const currentWeekId: number = rawWeekId ? JSON.parse(rawWeekId) : 4;
+    const parsedWeekId = rawWeekId ? JSON.parse(rawWeekId) : 5;
+    // Chuyển sang Tuần 5 nếu trước đó đang ở tuần 6 hoặc tuần 4
+    const currentWeekId: number = parsedWeekId === 6 ? 5 : parsedWeekId;
     const currentUserRole: UserRoleType = rawRole ? (rawRole as UserRoleType) : 'gvcn';
     const accounts: UserAccount[] = rawAccounts ? JSON.parse(rawAccounts) : INITIAL_ACCOUNTS;
     // Cập nhật tên GVCN và quyền nhóm 1 nếu lưu từ phiên trước
@@ -116,6 +118,20 @@ export function loadAppState(): AppState {
       weeklyRecords = JSON.parse(rawRecords);
     } else {
       weeklyRecords = {};
+    }
+
+    // Tự động chuyển toàn bộ dữ liệu ghi nhận từ Tuần 6 sang Tuần 5 theo yêu cầu GVCN
+    if (weeklyRecords[6] && Object.keys(weeklyRecords[6]).length > 0) {
+      weeklyRecords[5] = {
+        ...(weeklyRecords[5] || {}),
+        ...weeklyRecords[6],
+      };
+    }
+    if (weeklyRemarks[6]) {
+      weeklyRemarks[5] = {
+        ...(weeklyRemarks[5] || {}),
+        ...weeklyRemarks[6],
+      };
     }
 
     const morningDutyRecords: MorningDutyRecord[] = rawMorning

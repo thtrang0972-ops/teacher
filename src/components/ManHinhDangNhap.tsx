@@ -15,6 +15,9 @@ import {
   KeyRound,
   Users,
   Flag,
+  ChevronDown,
+  ChevronUp,
+  Search,
 } from 'lucide-react';
 import { Student, UserAccount, ClassMetadata } from '../types/discipline';
 import { matchStudentQuery } from '../utils/vietnamese';
@@ -47,6 +50,7 @@ export const ManHinhDangNhap: React.FC<ManHinhDangNhapProps> = ({
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentPassword, setStudentPassword] = useState('');
   const [showStudentPassword, setShowStudentPassword] = useState(false);
+  const [isStudentListExpanded, setIsStudentListExpanded] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
@@ -100,19 +104,44 @@ export const ManHinhDangNhap: React.FC<ManHinhDangNhapProps> = ({
     }, 300);
   };
 
-  // 3. Xử lý đăng nhập Học sinh
+  // 3. Xử lý đăng nhập Học sinh (Kiểm tra cả Tài khoản & Mật khẩu)
   const handleStudentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudent) {
-      setErrorMessage('Vui lòng chọn tên học sinh của bạn trong danh sách!');
+    setErrorMessage('');
+
+    let targetStudent = selectedStudent;
+    if (!targetStudent && searchStudent.trim()) {
+      const found = students.find((s) => matchStudentQuery(s, searchStudent.trim()));
+      if (found) {
+        targetStudent = found;
+        setSelectedStudent(found);
+      }
+    }
+
+    if (!targetStudent) {
+      setErrorMessage('Vui lòng chọn hoặc nhập đúng STT / Họ tên học sinh của bạn!');
       return;
     }
 
-    setErrorMessage('');
-    // Học sinh đăng nhập chế độ chỉ xem điểm thi đua
-    setSuccessNotice(`Chào mừng học sinh ${selectedStudent.name} (Nhóm ${selectedStudent.groupId})!`);
+    const trimmedPass = studentPassword.trim();
+    if (!trimmedPass) {
+      setErrorMessage('Vui lòng nhập mật khẩu học sinh để đăng nhập!');
+      return;
+    }
+
+    // Mật khẩu mặc định là 123 hoặc kiểm tra trong danh sách tài khoản nếu có cấu hình riêng
+    const customAcc = accounts.find((a) => a.id === `acc-${targetStudent?.id}`);
+    const expectedPass = customAcc?.password || '123';
+
+    if (trimmedPass !== expectedPass && trimmedPass !== '123') {
+      setErrorMessage('Mật khẩu không chính xác! Mật khẩu mặc định là 123 hoặc liên hệ GVCN.');
+      return;
+    }
+
+    // Học sinh đăng nhập chế độ xem điểm thi đua
+    setSuccessNotice(`Chào mừng học sinh ${targetStudent.name} (Nhóm ${targetStudent.groupId})!`);
     setTimeout(() => {
-      onLoginSuccess(`acc-${selectedStudent.id}`, selectedStudent);
+      onLoginSuccess(`acc-${targetStudent.id}`, targetStudent);
     }, 300);
   };
 
@@ -474,104 +503,241 @@ export const ManHinhDangNhap: React.FC<ManHinhDangNhapProps> = ({
                 )}
               </div>
             ) : (
-              /* TAB 2: HỌC SINH VÀO ĐÚNG TÊN XEM ĐIỂM */
+              /* TAB 2: HỌC SINH ĐĂNG NHẬP (GOM GỌN, ẨN VÀO TRONG, BẢO MẬT BẰNG MẬT KHẨU) */
               <form onSubmit={handleStudentSubmit} className="space-y-4">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-900 flex items-start gap-2">
-                  <GraduationCap className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-2xl text-xs text-blue-900 flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
                   <div>
-                    <p className="font-bold">Dành cho Học sinh:</p>
+                    <p className="font-bold text-blue-950">Đăng nhập tài khoản Học sinh:</p>
                     <p className="text-[11px] text-blue-800 mt-0.5">
-                      Chọn đúng tên của bạn để theo dõi điểm thi đua cá nhân và thứ hạng của nhóm.
+                      Nhập tài khoản (hoặc STT) và mật khẩu cá nhân để đăng nhập theo dõi điểm thi đua và bảng xếp hạng.
                     </p>
                   </div>
                 </div>
 
-                {/* Bộ lọc nhóm */}
-                <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedGroup(0)}
-                    className={`py-1.5 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer shrink-0 ${
-                      selectedGroup === 0
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
-                    }`}
-                  >
-                    Tất cả nhóm
-                  </button>
-                  {[1, 2, 3, 4, 5, 6].map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setSelectedGroup(g)}
-                      className={`py-1.5 px-2.5 text-xs font-bold rounded-xl border transition-all cursor-pointer shrink-0 ${
-                        selectedGroup === g
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
-                      }`}
-                    >
-                      N{g}
-                    </button>
-                  ))}
-                </div>
+                {/* 1. TÀI KHOẢN HỌC SINH */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Tài khoản học sinh (STT hoặc Họ tên):
+                  </label>
 
-                {/* Tìm kiếm tên */}
-                <input
-                  type="text"
-                  value={searchStudent}
-                  onChange={(e) => setSearchStudent(e.target.value)}
-                  placeholder="Gõ STT hoặc tên học sinh..."
-                  className="w-full text-xs font-medium p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                />
-
-                {/* Danh sách học sinh */}
-                <div className="max-h-48 overflow-y-auto p-1 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                  {filteredStudents.slice(0, 30).map((s) => {
-                    const isSelected = selectedStudent?.id === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setSelectedStudent(s)}
-                        className={`w-full p-2 rounded-xl text-left flex items-center justify-between text-xs transition-colors cursor-pointer ${
-                          isSelected
-                            ? 'bg-blue-600 text-white font-bold shadow-xs'
-                            : 'hover:bg-slate-200/70 text-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`w-6 h-6 rounded-lg font-black text-xs flex items-center justify-center ${
-                              isSelected ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {s.stt}
-                          </span>
-                          <span>
-                            {s.name} (Nhóm {s.groupId})
-                          </span>
+                  {selectedStudent ? (
+                    /* Thẻ tài khoản đã chọn - Gọn gàng và rõ ràng */
+                    <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between gap-3 animate-in fade-in">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                          {selectedStudent.stt}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-slate-900 truncate">
+                            {selectedStudent.name}
+                          </p>
+                          <p className="text-[11px] font-bold text-indigo-700">
+                            Nhóm {selectedStudent.groupId} {selectedStudent.role ? `• ${selectedStudent.role}` : ''}
+                          </p>
                         </div>
-                        {isSelected && <CheckCircle2 className="w-4 h-4" />}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedStudent(null);
+                          setSearchStudent('');
+                        }}
+                        className="px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer shrink-0"
+                      >
+                        Đổi tài khoản
                       </button>
-                    );
-                  })}
+                    </div>
+                  ) : (
+                    /* Ô nhập tài khoản kèm gợi ý nhanh */
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={searchStudent}
+                          onChange={(e) => setSearchStudent(e.target.value)}
+                          placeholder="Ví dụ: 1, 01, hoặc gõ tên học sinh..."
+                          className="w-full text-xs font-bold p-3 pl-10 pr-9 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-inner"
+                        />
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        {searchStudent && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchStudent('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold p-0.5 cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Gợi ý tìm kiếm nhanh (chỉ hiện tối đa 4 bạn phù hợp nhất) */}
+                      {searchStudent.trim() && filteredStudents.length > 0 && (
+                        <div className="p-1 bg-white border border-blue-200 rounded-xl shadow-lg space-y-1 animate-in fade-in max-h-36 overflow-y-auto">
+                          <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase border-b border-slate-100">
+                            Gợi ý tài khoản ({filteredStudents.length}):
+                          </div>
+                          {filteredStudents.slice(0, 4).map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedStudent(s);
+                                setSearchStudent(s.name);
+                              }}
+                              className="w-full p-2 hover:bg-blue-50 rounded-lg text-left flex items-center justify-between text-xs transition-colors cursor-pointer group"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center">
+                                  {s.stt}
+                                </span>
+                                <span className="font-bold text-slate-900 group-hover:text-blue-700">
+                                  {s.name} (Nhóm {s.groupId})
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-blue-600 font-bold">Chọn ✓</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* NÚT GOM GỌN, ẨN LẠI VÀO TRONG: Bấm để mở/đóng danh sách 6 nhóm */}
+                      <div className="pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setIsStudentListExpanded(!isStudentListExpanded)}
+                          className="w-full py-2 px-3 bg-slate-100/80 hover:bg-slate-200/80 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Users className="w-3.5 h-3.5 text-slate-500" />
+                            <span>
+                              {isStudentListExpanded
+                                ? 'Thu gọn danh sách học sinh (Ẩn lại vào trong)'
+                                : '📋 Chọn tài khoản từ danh sách lớp (Đang ẩn)'}
+                            </span>
+                          </span>
+                          {isStudentListExpanded ? (
+                            <ChevronUp className="w-4 h-4 text-slate-500" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-slate-500" />
+                          )}
+                        </button>
+
+                        {/* Danh sách 6 nhóm khi được bấm mở ra */}
+                        {isStudentListExpanded && (
+                          <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 animate-in fade-in">
+                            {/* Bộ lọc nhóm */}
+                            <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedGroup(0)}
+                                className={`py-1 px-2.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer shrink-0 ${
+                                  selectedGroup === 0
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'
+                                }`}
+                              >
+                                Tất cả nhóm
+                              </button>
+                              {[1, 2, 3, 4, 5, 6].map((g) => (
+                                <button
+                                  key={g}
+                                  type="button"
+                                  onClick={() => setSelectedGroup(g)}
+                                  className={`py-1 px-2 text-[11px] font-bold rounded-lg border transition-all cursor-pointer shrink-0 ${
+                                    selectedGroup === g
+                                      ? 'bg-blue-600 text-white border-blue-600'
+                                      : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'
+                                  }`}
+                                >
+                                  N{g}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Danh sách học sinh có thể cuộn */}
+                            <div className="max-h-36 overflow-y-auto p-1 bg-white border border-slate-200 rounded-xl space-y-1">
+                              {filteredStudents.length === 0 ? (
+                                <p className="text-center py-3 text-slate-400 text-xs">
+                                  Không tìm thấy học sinh nào
+                                </p>
+                              ) : (
+                                filteredStudents.map((s) => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedStudent(s);
+                                      setSearchStudent(s.name);
+                                      setIsStudentListExpanded(false);
+                                    }}
+                                    className="w-full p-1.5 hover:bg-blue-50 rounded-lg text-left flex items-center justify-between text-xs transition-colors cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-5 h-5 rounded bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center">
+                                        {s.stt}
+                                      </span>
+                                      <span className="font-semibold text-slate-800">
+                                        {s.name} (Nhóm {s.groupId})
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-blue-600">Chọn</span>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
+                {/* 2. MẬT KHẨ HỌC SINH */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Mật khẩu học sinh:
+                    </label>
+                    <span className="text-[10px] font-semibold text-slate-400">
+                      Mặc định: 123
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showStudentPassword ? 'text' : 'password'}
+                      required
+                      value={studentPassword}
+                      onChange={(e) => setStudentPassword(e.target.value)}
+                      placeholder="Nhập mật khẩu học sinh..."
+                      className="w-full text-xs font-bold p-3 pl-10 pr-10 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-inner"
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <button
+                      type="button"
+                      onClick={() => setShowStudentPassword(!showStudentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                      title={showStudentPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    >
+                      {showStudentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. NÚT ĐĂNG NHẬP XEM ĐIỂM */}
                 <button
                   type="submit"
-                  disabled={!selectedStudent}
-                  className={`w-full py-3 px-4 font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 ${
-                    selectedStudent
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer hover:scale-[1.01]'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
+                  className="w-full py-3 px-4 font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white cursor-pointer hover:scale-[1.01]"
                 >
                   <GraduationCap className="w-4 h-4" />
                   <span>
                     {selectedStudent
-                      ? `Vào Xem Điểm: ${selectedStudent.name}`
-                      : 'Vui lòng chọn tên học sinh ở trên'}
+                      ? `Đăng Nhập Xem Điểm: ${selectedStudent.name}`
+                      : 'Đăng Nhập Xem Điểm Thi Đua'}
                   </span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
             )}

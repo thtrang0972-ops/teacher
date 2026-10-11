@@ -23,6 +23,8 @@ import {
   LogOut,
   Zap,
   RefreshCw,
+  Copy,
+  FileText,
 } from 'lucide-react';
 import { WeekInfo, ClassMetadata, UserAccount, Student } from '../types/discipline';
 import { ColorTheme } from '../types/theme';
@@ -46,6 +48,7 @@ interface HeaderProps {
   onOpenClassRoster?: () => void;
   onOpenSettings?: () => void;
   onOpenPrint?: () => void;
+  onOpenCopyWeekData?: () => void;
   onOpenThemeModal?: () => void;
   onOpenAuthModal?: () => void;
   onOpenQuickLogin?: () => void;
@@ -72,6 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenClassRoster,
   onOpenSettings,
   onOpenPrint,
+  onOpenCopyWeekData,
   onOpenThemeModal,
   onOpenAuthModal,
   onOpenQuickLogin,
@@ -401,8 +405,21 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Nhóm công cụ bên phải: Màu Xanh Ngọc / Xanh Lá Nhạt (Tươi mới, dịu mắt) + Công cụ */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Nút Xuất Báo Cáo trực tiếp: Word, PDF, Excel */}
+            {onOpenPrint && (
+              <button
+                type="button"
+                onClick={onOpenPrint}
+                className="flex items-center gap-1.5 px-3 py-2 text-white bg-blue-700/80 hover:bg-blue-600 active:bg-blue-700 rounded-xl border border-blue-400/40 transition-all cursor-pointer shadow-xs text-xs font-bold shrink-0"
+                title="Xuất báo cáo thi đua tuần (Word, Excel, PDF)"
+              >
+                <FileText className="w-4 h-4 text-amber-300" />
+                <span className="hidden sm:inline">Xuất Báo Cáo</span>
+              </button>
+            )}
+
             {/* Điểm nhấn Màu Xanh Ngọc / Xanh Lá Nhạt tươi mới, dịu mắt */}
-            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-400/20 text-teal-100 border border-teal-300/40 text-xs font-bold shadow-xs">
+            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-400/20 text-teal-100 border border-teal-300/40 text-xs font-bold shadow-xs">
               <Sparkles className="w-3.5 h-3.5 text-teal-200" />
               <span>Nề Nếp Tích Cực</span>
             </div>
@@ -433,12 +450,26 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={onOpenPrint}
                     className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
-                    <Printer className="w-4 h-4 text-slate-500" />
+                    <FileText className="w-4 h-4 text-blue-600" />
                     <div>
-                      <p className="leading-tight font-black">In / Xuất phiếu nề nếp A4</p>
-                      <p className="text-[10px] font-normal text-slate-400">Xuất báo cáo tuần in giấy</p>
+                      <p className="leading-tight font-black text-slate-900">Xuất Báo Cáo (Word, PDF, Excel)</p>
+                      <p className="text-[10px] font-normal text-slate-400">Xuất file Word, Excel hoặc in PDF A4</p>
                     </div>
                   </button>
+
+                  {onOpenCopyWeekData && (
+                    <button
+                      type="button"
+                      onClick={onOpenCopyWeekData}
+                      className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-4 h-4 text-indigo-600" />
+                      <div>
+                        <p className="leading-tight font-black text-slate-900">Sao chép dữ liệu giữa các tuần</p>
+                        <p className="text-[10px] font-normal text-slate-400">Chuyển điểm/nhận xét khi ghi nhầm tuần</p>
+                      </div>
+                    </button>
+                  )}
 
                   <button
                     type="button"

@@ -13,6 +13,8 @@ import {
   ShieldAlert,
   Wand2,
   CheckCircle2,
+  FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   GroupSummary,
@@ -22,9 +24,11 @@ import {
   ClassMetadata,
   GroupWeeklyRemark,
   OfficerWeeklyRemarks,
+  WeeklyRemarksStore,
 } from '../types/discipline';
 import { CRITERIA_LIST, calculateStudentScore, getClassificationColor } from '../utils/scoring';
 import { formatDateVN, formatWeekDateRangeVN } from '../utils/date';
+import { exportWeeklyReportToExcel, exportWeeklyReportToWord } from '../utils/reportExport';
 import {
   generateAutoTeacherRemarkForGroup,
   generateAutoTeacherRemarksForAllGroups,
@@ -59,6 +63,53 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [autoGenSuccess, setAutoGenSuccess] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  const handleExportWord = () => {
+    exportWeeklyReportToWord({
+      metadata,
+      currentWeek,
+      students,
+      records,
+      groups,
+      remarks: {
+        groupRemarks: [null as any, ...Object.values(groupRemarks)],
+        officerRemarks: officerRemarks || {
+          academicRemark: { authorName: metadata.academicViceMonitorName || '', content: '', rating: 'Khá', updatedAt: '' },
+          laborRemark: { authorName: metadata.laborViceMonitorName || '', content: '', rating: 'Khá', updatedAt: '' },
+          disciplineRemark: { authorName: metadata.disciplineViceMonitorName || '', content: '', rating: 'Khá', updatedAt: '' },
+          monitorRemark: { authorName: metadata.monitorName || '', generalSummary: '', updatedAt: '' },
+          teacherAdvice: { advice: '', isApproved: true, teacherName: metadata.homeroomTeacher || '', updatedAt: '' },
+        },
+        teacherGroupNotes,
+      },
+    });
+    setExportNotice('Đã xuất báo cáo ra file Word (.doc) thành công!');
+    setTimeout(() => setExportNotice(null), 3000);
+  };
+
+  const handleExportExcel = () => {
+    exportWeeklyReportToExcel({
+      metadata,
+      currentWeek,
+      students,
+      records,
+      groups,
+      remarks: {
+        groupRemarks: [null as any, ...Object.values(groupRemarks)],
+        officerRemarks: officerRemarks || {
+          academicRemark: { authorName: metadata.academicViceMonitorName || '', content: '', rating: 'Khá', updatedAt: '' },
+          laborRemark: { authorName: metadata.laborViceMonitorName || '', content: '', rating: 'Khá', updatedAt: '' },
+          disciplineRemark: { authorName: metadata.disciplineViceMonitorName || '', content: '', rating: 'Khá', updatedAt: '' },
+          monitorRemark: { authorName: metadata.monitorName || '', generalSummary: '', updatedAt: '' },
+          teacherAdvice: { advice: '', isApproved: true, teacherName: metadata.homeroomTeacher || '', updatedAt: '' },
+        },
+        teacherGroupNotes,
+      },
+    });
+    setExportNotice('Đã xuất báo cáo ra file Excel (.xlsx) 3 Sheet thành công!');
+    setTimeout(() => setExportNotice(null), 3000);
+  };
 
   // Xử lý tự động tạo nhận xét cả 6 nhóm theo báo cáo
   const handleAutoGenerateAllNotes = () => {
@@ -234,32 +285,67 @@ ${
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Nút Xuất Word */}
             <button
+              type="button"
+              onClick={handleExportWord}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="Tải về file Microsoft Word (.doc) chuẩn văn bản hành chính"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Xuất Word (.doc)</span>
+            </button>
+
+            {/* Nút Xuất Excel */}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="Tải về file Excel (.xlsx) gồm 3 Sheet: 6 Nhóm, Sổ chi tiết, Nhận xét"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Xuất Excel (.xlsx)</span>
+            </button>
+
+            {/* Nút In / Lưu PDF */}
+            <button
+              type="button"
+              onClick={onOpenPrint}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="In ra máy in hoặc Lưu dưới dạng PDF chuẩn khổ A4"
+            >
+              <Printer className="w-4 h-4" />
+              <span>In / Lưu PDF</span>
+            </button>
+
+            {/* Nút Sao chép Zalo */}
+            <button
+              type="button"
               onClick={copyToClipboard}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+              title="Sao chép tóm tắt báo cáo nề nếp tuần để gửi Zalo lớp"
             >
               {copied ? (
                 <>
                   <Check className="w-4 h-4 text-emerald-600" />
-                  <span className="text-emerald-700">Đã sao chép!</span>
+                  <span className="text-emerald-700 font-bold">Đã sao chép!</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  <span>Sao chép báo cáo Zalo</span>
+                  <span>Sao chép Zalo</span>
                 </>
               )}
             </button>
-
-            <button
-              onClick={onOpenPrint}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
-            >
-              <Printer className="w-4 h-4" />
-              <span>In Phiếu A4</span>
-            </button>
           </div>
         </div>
+
+        {exportNotice && (
+          <div className="p-2.5 mt-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{exportNotice}</span>
+          </div>
+        )}
 
         {/* 4 Chỉ số KPI nề nếp tuần */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
