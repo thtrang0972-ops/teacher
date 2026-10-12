@@ -120,17 +120,44 @@ export function loadAppState(): AppState {
       weeklyRecords = {};
     }
 
-    // Tự động chuyển toàn bộ dữ liệu ghi nhận từ Tuần 6 sang Tuần 5 theo yêu cầu GVCN
+    // Yêu cầu: Bỏ dữ liệu ghi nhận vi phạm của Tuần 6, giữ nguyên vẹn dữ liệu Tuần 5
     if (weeklyRecords[6] && Object.keys(weeklyRecords[6]).length > 0) {
       weeklyRecords[5] = {
         ...(weeklyRecords[5] || {}),
         ...weeklyRecords[6],
       };
     }
+    // Xoá sạch toàn bộ ghi nhận vi phạm Tuần 6
+    weeklyRecords[6] = {};
+
     if (weeklyRemarks[6]) {
-      weeklyRemarks[5] = {
-        ...(weeklyRemarks[5] || {}),
-        ...weeklyRemarks[6],
+      const gRemarks = weeklyRemarks[6].groupRemarks;
+      const hasConsOrPros = Array.isArray(gRemarks)
+        ? (gRemarks as any[]).some((g) => g?.cons || g?.pros)
+        : Object.values(gRemarks || {}).some((g) => g?.cons || g?.pros);
+      if (hasConsOrPros) {
+        weeklyRemarks[5] = {
+          ...(weeklyRemarks[5] || {}),
+          ...weeklyRemarks[6],
+        };
+      }
+      // Đưa nhận xét Tuần 6 về trạng thái trắng tinh
+      weeklyRemarks[6] = {
+        groupRemarks: {
+          1: { groupId: 1, leaderName: 'Trần Như Mỹ', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+          2: { groupId: 2, leaderName: 'Hồ Thị Thảo Vy', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+          3: { groupId: 3, leaderName: 'Hồ Thị Tuyết Minh', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+          4: { groupId: 4, leaderName: 'Nguyễn Phi Thanh Long', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+          5: { groupId: 5, leaderName: 'Nguyễn Thị Yến Nhi A', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+          6: { groupId: 6, leaderName: 'Trương Lê Triều Vỹ', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+        },
+        officerRemarks: {
+          academicRemark: { authorName: 'Nguyễn Thị Ngân Quỳnh', content: '', rating: 'Tốt', updatedAt: '' },
+          disciplineRemark: { authorName: 'Trần Bích Tuyền', content: '', rating: 'Tốt', updatedAt: '' },
+          laborRemark: { authorName: 'Nguyễn Hồng Ân', content: '', rating: 'Tốt', updatedAt: '' },
+          monitorRemark: { authorName: 'Đinh Thị Ngọc Huệ', generalSummary: '', updatedAt: '' },
+          teacherAdvice: { advice: '', isApproved: false, teacherName: 'Cô Nguyễn Thị Thuỳ Trang', updatedAt: '' },
+        },
       };
     }
 

@@ -9,6 +9,7 @@ import {
   FileCheck2,
   ShieldCheck,
   Check,
+  Trash2,
 } from 'lucide-react';
 import { WeekInfo } from '../types/discipline';
 
@@ -25,8 +26,10 @@ interface CopyWeekDataModalProps {
       copySubmissions: boolean;
       copyRemarks: boolean;
       switchWeek: boolean;
+      clearSourceWeek?: boolean;
     }
   ) => void;
+  onClearWeekViolations?: (weekId: number) => void;
 }
 
 export const CopyWeekDataModal: React.FC<CopyWeekDataModalProps> = ({
@@ -35,6 +38,7 @@ export const CopyWeekDataModal: React.FC<CopyWeekDataModalProps> = ({
   weeks,
   currentWeekId,
   onCopyWeekData,
+  onClearWeekViolations,
 }) => {
   const [fromWeekId, setFromWeekId] = useState<number>(6);
   const [toWeekId, setToWeekId] = useState<number>(5);
@@ -42,6 +46,7 @@ export const CopyWeekDataModal: React.FC<CopyWeekDataModalProps> = ({
   const [copySubmissions, setCopySubmissions] = useState(true);
   const [copyRemarks, setCopyRemarks] = useState(true);
   const [switchWeek, setSwitchWeek] = useState(true);
+  const [clearSourceWeek, setClearSourceWeek] = useState(false);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -58,6 +63,7 @@ export const CopyWeekDataModal: React.FC<CopyWeekDataModalProps> = ({
       copySubmissions,
       copyRemarks,
       switchWeek,
+      clearSourceWeek,
     });
 
     const fromName = weeks.find((w) => w.id === fromWeekId)?.name || `Tuần ${fromWeekId}`;
@@ -68,6 +74,20 @@ export const CopyWeekDataModal: React.FC<CopyWeekDataModalProps> = ({
       setSuccessNotice(null);
       onClose();
     }, 2000);
+  };
+
+  const handleClearSource = () => {
+    const fromName = weeks.find((w) => w.id === fromWeekId)?.name || `Tuần ${fromWeekId}`;
+    if (window.confirm(`Bạn có chắc chắn muốn bỏ toàn bộ dữ liệu ghi nhận vi phạm của ${fromName} không? Tuần đích và các tuần khác vẫn giữ nguyên.`)) {
+      if (onClearWeekViolations) {
+        onClearWeekViolations(fromWeekId);
+      }
+      setSuccessNotice(`Đã làm sạch toàn bộ dữ liệu ghi nhận vi phạm của ${fromName}!`);
+      setTimeout(() => {
+        setSuccessNotice(null);
+        onClose();
+      }, 1500);
+    }
   };
 
   return (
@@ -220,7 +240,41 @@ export const CopyWeekDataModal: React.FC<CopyWeekDataModalProps> = ({
                 </p>
               </div>
             </label>
+
+            <label className="flex items-center gap-2.5 p-2 bg-rose-50/70 rounded-lg border border-rose-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={clearSourceWeek}
+                onChange={(e) => setClearSourceWeek(e.target.checked)}
+                className="w-4 h-4 text-rose-600 rounded focus:ring-rose-500 cursor-pointer"
+              />
+              <div>
+                <p className="font-bold text-rose-950 text-xs">
+                  Bỏ / Làm sạch dữ liệu ghi nhận vi phạm của Tuần nguồn sau khi sao chép
+                </p>
+                <p className="text-[10px] text-rose-700">
+                  Phù hợp khi bạn nhập nhầm tuần (ví dụ nhầm vào Tuần 6), giúp tuần cũ trắng tinh 0 lỗi
+                </p>
+              </div>
+            </label>
           </div>
+
+          {/* Nút làm sạch nhanh tuần nguồn */}
+          {onClearWeekViolations && (
+            <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+              <span className="text-[11px] text-slate-500">
+                Chỉ muốn xoá lỗi vi phạm tuần {weeks.find((w) => w.id === fromWeekId)?.name || `Tuần ${fromWeekId}`}?
+              </span>
+              <button
+                type="button"
+                onClick={handleClearSource}
+                className="flex items-center gap-1 px-2.5 py-1 text-rose-700 bg-rose-100/70 hover:bg-rose-200 active:bg-rose-300 rounded-lg font-bold text-[11px] transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Xoá vi phạm {weeks.find((w) => w.id === fromWeekId)?.name || `Tuần ${fromWeekId}`}</span>
+              </button>
+            </div>
+          )}
 
           {/* Thông báo thành công */}
           {successNotice && (

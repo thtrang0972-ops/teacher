@@ -211,19 +211,45 @@ export default function App() {
               }
             }
 
-            // Đảm bảo dữ liệu tuần 6 được chuyển toàn bộ sang tuần 5 và bảo toàn nguyên vẹn
+            // Yêu cầu: Bỏ dữ liệu ghi nhận vi phạm của Tuần 6, giữ nguyên vẹn dữ liệu Tuần 5
             if (mergedWeeklyRecords[6] && Object.keys(mergedWeeklyRecords[6]).length > 0) {
               mergedWeeklyRecords[5] = {
                 ...(mergedWeeklyRecords[5] || {}),
                 ...mergedWeeklyRecords[6],
               };
             }
+            // Xoá sạch vi phạm Tuần 6
+            mergedWeeklyRecords[6] = {};
 
             const mergedRemarks = remote.weeklyRemarks || safePrev.weeklyRemarks || {};
             if (mergedRemarks[6]) {
-              mergedRemarks[5] = {
-                ...(mergedRemarks[5] || {}),
-                ...mergedRemarks[6],
+              const gRemarks6 = mergedRemarks[6].groupRemarks;
+              const hasRemarks6 = Array.isArray(gRemarks6)
+                ? (gRemarks6 as any[]).some((g) => g?.cons || g?.pros)
+                : Object.values(gRemarks6 || {}).some((g: any) => g?.cons || g?.pros);
+              if (hasRemarks6) {
+                mergedRemarks[5] = {
+                  ...(mergedRemarks[5] || {}),
+                  ...mergedRemarks[6],
+                };
+              }
+              // Reset nhận xét Tuần 6
+              mergedRemarks[6] = {
+                groupRemarks: {
+                  1: { groupId: 1, leaderName: 'Trần Như Mỹ', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+                  2: { groupId: 2, leaderName: 'Hồ Thị Thảo Vy', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+                  3: { groupId: 3, leaderName: 'Hồ Thị Tuyết Minh', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+                  4: { groupId: 4, leaderName: 'Nguyễn Phi Thanh Long', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+                  5: { groupId: 5, leaderName: 'Nguyễn Thị Yến Nhi A', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+                  6: { groupId: 6, leaderName: 'Trương Lê Triều Vỹ', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+                },
+                officerRemarks: {
+                  academicRemark: { authorName: 'Nguyễn Thị Ngân Quỳnh', content: '', rating: 'Tốt', updatedAt: '' },
+                  disciplineRemark: { authorName: 'Trần Bích Tuyền', content: '', rating: 'Tốt', updatedAt: '' },
+                  laborRemark: { authorName: 'Nguyễn Hồng Ân', content: '', rating: 'Tốt', updatedAt: '' },
+                  monitorRemark: { authorName: 'Đinh Thị Ngọc Huệ', generalSummary: '', updatedAt: '' },
+                  teacherAdvice: { advice: '', isApproved: false, teacherName: 'Cô Nguyễn Thị Thuỳ Trang', updatedAt: '' },
+                },
               };
             }
 
@@ -232,11 +258,12 @@ export default function App() {
                 ...(syncedMetadata.groupSubmissions[5] || {}),
                 ...syncedMetadata.groupSubmissions[6],
               };
+              syncedMetadata.groupSubmissions[6] = {};
             }
 
             const targetWeekId = (remote.currentWeekId === 6 || safePrev.currentWeekId === 6)
               ? 5
-              : (remote.currentWeekId ?? safePrev.currentWeekId);
+              : (remote.currentWeekId ?? safePrev.currentWeekId ?? 5);
 
             const merged: AppState = {
               ...safePrev,
@@ -1029,6 +1056,7 @@ export default function App() {
       copySubmissions: boolean;
       copyRemarks: boolean;
       switchWeek: boolean;
+      clearSourceWeek?: boolean;
     }
   ) => {
     setAppState((prev) => {
@@ -1055,6 +1083,33 @@ export default function App() {
         newRemarks[toWeekId] = JSON.parse(JSON.stringify(sourceRemarks));
       }
 
+      // Nếu người dùng chọn xoá tuần nguồn sau khi chuyển
+      if (options.clearSourceWeek) {
+        newWeeklyRecords[fromWeekId] = {};
+        if (newMetadata.groupSubmissions) {
+          newMetadata.groupSubmissions[fromWeekId] = {};
+        }
+        if (newRemarks[fromWeekId]) {
+          newRemarks[fromWeekId] = {
+            groupRemarks: {
+              1: { groupId: 1, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+              2: { groupId: 2, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+              3: { groupId: 3, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+              4: { groupId: 4, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+              5: { groupId: 5, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+              6: { groupId: 6, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+            },
+            officerRemarks: {
+              academicRemark: { authorName: '', content: '', rating: 'Tốt', updatedAt: '' },
+              disciplineRemark: { authorName: '', content: '', rating: 'Tốt', updatedAt: '' },
+              laborRemark: { authorName: '', content: '', rating: 'Tốt', updatedAt: '' },
+              monitorRemark: { authorName: '', generalSummary: '', updatedAt: '' },
+              teacherAdvice: { advice: '', isApproved: false, teacherName: '', updatedAt: '' },
+            },
+          };
+        }
+      }
+
       const nextWeekId = options.switchWeek ? toWeekId : safePrev.currentWeekId;
       const nextState: AppState = {
         ...safePrev,
@@ -1064,6 +1119,49 @@ export default function App() {
         metadata: newMetadata,
       };
 
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
+    });
+  };
+
+  const handleClearWeekViolations = (weekId: number) => {
+    setAppState((prev) => {
+      const safePrev = prev || resetToInitialData();
+      const newWeeklyRecords = { ...safePrev.weeklyRecords, [weekId]: {} };
+      const newMeta = {
+        ...safePrev.metadata,
+        groupSubmissions: {
+          ...(safePrev.metadata?.groupSubmissions || {}),
+          [weekId]: {},
+        },
+      };
+      const newRemarks = { ...safePrev.weeklyRemarks };
+      if (newRemarks[weekId]) {
+        newRemarks[weekId] = {
+          groupRemarks: {
+            1: { groupId: 1, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+            2: { groupId: 2, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+            3: { groupId: 3, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+            4: { groupId: 4, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+            5: { groupId: 5, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+            6: { groupId: 6, leaderName: '', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
+          },
+          officerRemarks: {
+            academicRemark: { authorName: '', content: '', rating: 'Tốt', updatedAt: '' },
+            disciplineRemark: { authorName: '', content: '', rating: 'Tốt', updatedAt: '' },
+            laborRemark: { authorName: '', content: '', rating: 'Tốt', updatedAt: '' },
+            monitorRemark: { authorName: '', generalSummary: '', updatedAt: '' },
+            teacherAdvice: { advice: '', isApproved: false, teacherName: '', updatedAt: '' },
+          },
+        };
+      }
+      const nextState: AppState = {
+        ...safePrev,
+        weeklyRecords: newWeeklyRecords,
+        metadata: newMeta,
+        weeklyRemarks: newRemarks,
+      };
       saveAppState(nextState);
       syncToCloud(nextState, true);
       return nextState;
@@ -1298,6 +1396,7 @@ export default function App() {
         weeks={weeks}
         currentWeekId={currentWeekId}
         onCopyWeekData={handleCopyWeekData}
+        onClearWeekViolations={handleClearWeekViolations}
       />
 
       <RoleRemarksModal
