@@ -211,29 +211,44 @@ export default function App() {
               }
             }
 
-            // Yêu cầu: Bỏ dữ liệu ghi nhận vi phạm của Tuần 6, giữ nguyên vẹn dữ liệu Tuần 5
-            if (mergedWeeklyRecords[6] && Object.keys(mergedWeeklyRecords[6]).length > 0) {
-              mergedWeeklyRecords[5] = {
-                ...(mergedWeeklyRecords[5] || {}),
-                ...mergedWeeklyRecords[6],
-              };
+            // Chuẩn hóa và bảo tồn tuyệt đối dữ liệu Tuần 5
+            if (mergedWeeklyRecords[5] && syncedStudents.length > 0) {
+              const normalizedW5: Record<string, StudentWeeklyRecord> = {};
+              syncedStudents.forEach((s) => {
+                let rec = mergedWeeklyRecords[5][s.id];
+                if (!rec) {
+                  const matchingKey = Object.keys(mergedWeeklyRecords[5]).find((k) => k.endsWith(`-${s.stt}`));
+                  if (matchingKey) rec = mergedWeeklyRecords[5][matchingKey];
+                }
+                normalizedW5[s.id] = rec || {
+                  studentId: s.id,
+                  diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
+                  khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
+                  matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
+                  trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
+                };
+              });
+              mergedWeeklyRecords[5] = normalizedW5;
             }
-            // Xoá sạch vi phạm Tuần 6
-            mergedWeeklyRecords[6] = {};
+
+            // Tuần 6: Khởi tạo dữ liệu sạch (nếu chưa có) cho tuần mới, không ghi đè nếu đã có vi phạm ghi nhận
+            if (syncedStudents.length > 0 && !mergedWeeklyRecords[6]) {
+              const cleanW6: Record<string, StudentWeeklyRecord> = {};
+              syncedStudents.forEach((s) => {
+                cleanW6[s.id] = {
+                  studentId: s.id,
+                  diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
+                  khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
+                  matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
+                  trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
+                };
+              });
+              mergedWeeklyRecords[6] = cleanW6;
+            }
 
             const mergedRemarks = remote.weeklyRemarks || safePrev.weeklyRemarks || {};
-            if (mergedRemarks[6]) {
-              const gRemarks6 = mergedRemarks[6].groupRemarks;
-              const hasRemarks6 = Array.isArray(gRemarks6)
-                ? (gRemarks6 as any[]).some((g) => g?.cons || g?.pros)
-                : Object.values(gRemarks6 || {}).some((g: any) => g?.cons || g?.pros);
-              if (hasRemarks6) {
-                mergedRemarks[5] = {
-                  ...(mergedRemarks[5] || {}),
-                  ...mergedRemarks[6],
-                };
-              }
-              // Reset nhận xét Tuần 6
+            // Khởi tạo nhận xét Tuần 6 nếu chưa có
+            if (!mergedRemarks[6]) {
               mergedRemarks[6] = {
                 groupRemarks: {
                   1: { groupId: 1, leaderName: 'Trần Như Mỹ', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },
@@ -253,17 +268,12 @@ export default function App() {
               };
             }
 
-            if (syncedMetadata.groupSubmissions?.[6]) {
-              syncedMetadata.groupSubmissions[5] = {
-                ...(syncedMetadata.groupSubmissions[5] || {}),
-                ...syncedMetadata.groupSubmissions[6],
-              };
-              syncedMetadata.groupSubmissions[6] = {};
+            if (syncedMetadata.groupSubmissions?.[6] && !syncedMetadata.groupSubmissions?.[5]) {
+              syncedMetadata.groupSubmissions[5] = syncedMetadata.groupSubmissions[6];
             }
 
-            const targetWeekId = (remote.currentWeekId === 6 || safePrev.currentWeekId === 6)
-              ? 5
-              : (remote.currentWeekId ?? safePrev.currentWeekId ?? 5);
+            // Bảo toàn tuyệt đối tuần người dùng đang chọn trên giao diện
+            const targetWeekId = safePrev.currentWeekId ?? remote.currentWeekId ?? 5;
 
             const merged: AppState = {
               ...safePrev,
@@ -522,7 +532,7 @@ export default function App() {
   const handleSelectWeek = (weekId: number) => {
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
-      return {
+      const nextState: AppState = {
         ...safePrev,
         currentWeekId: weekId,
         weeklyRecords: {
@@ -530,16 +540,21 @@ export default function App() {
           [weekId]: safePrev.weeklyRecords[weekId] || {},
         },
       };
+      saveAppState(nextState);
+      syncToCloud(nextState, true);
+      return nextState;
     });
   };
 
   const handleUpdateRecord = (
     studentId: string,
-    updatedFields: Partial<StudentWeeklyRecord>
+    updatedFields: Partial<StudentWeeklyRecord>,
+    targetWeekId?: number
   ) => {
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
-      const weekRecs = { ...(safePrev.weeklyRecords[safePrev.currentWeekId] || {}) };
+      const currentWeek = targetWeekId ?? safePrev.currentWeekId;
+      const weekRecs = { ...(safePrev.weeklyRecords[currentWeek] || {}) };
       const currentStudentRec: StudentWeeklyRecord = weekRecs[studentId] || {
         studentId,
         diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
@@ -557,7 +572,7 @@ export default function App() {
         ...safePrev,
         weeklyRecords: {
           ...safePrev.weeklyRecords,
-          [safePrev.currentWeekId]: weekRecs,
+          [currentWeek]: weekRecs,
         },
       };
       saveAppState(nextState);
@@ -575,14 +590,16 @@ export default function App() {
     contextDetails?: {
       dayOfWeek?: 'Thứ 2' | 'Thứ 3' | 'Thứ 4' | 'Thứ 5' | 'Thứ 6' | 'Thứ 7';
       sessionName?: string;
-    }
+    },
+    targetWeekId?: number
   ) => {
     const student = students.find((s) => s.id === studentId);
     if (!student) return;
 
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
-      const weekRecs = { ...(safePrev.weeklyRecords[safePrev.currentWeekId] || {}) };
+      const currentWeek = targetWeekId ?? safePrev.currentWeekId;
+      const weekRecs = { ...(safePrev.weeklyRecords[currentWeek] || {}) };
       const currentStudentRec: StudentWeeklyRecord = weekRecs[studentId] || {
         studentId,
         diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
@@ -610,7 +627,7 @@ export default function App() {
       if (context === 'morning') {
         const morningRec: MorningDutyRecord = {
           id: `md-${Date.now()}`,
-          weekId: safePrev.currentWeekId,
+          weekId: currentWeek,
           date: new Date().toISOString().slice(0, 10),
           dayOfWeek: contextDetails?.dayOfWeek || 'Thứ 2',
           studentId: student.id,
@@ -629,7 +646,7 @@ export default function App() {
       if (context === 'afternoon') {
         const afternoonRec: AfternoonRecord = {
           id: `an-${Date.now()}`,
-          weekId: safePrev.currentWeekId,
+          weekId: currentWeek,
           date: new Date().toISOString().slice(0, 10),
           dayOfWeek: contextDetails?.dayOfWeek || 'Thứ 3',
           sessionName: contextDetails?.sessionName || 'Học trái buổi',
@@ -652,7 +669,7 @@ export default function App() {
         ...safePrev,
         weeklyRecords: {
           ...safePrev.weeklyRecords,
-          [safePrev.currentWeekId]: weekRecs,
+          [currentWeek]: weekRecs,
         },
         morningDutyRecords: newMorning,
         afternoonRecords: newAfternoon,
@@ -672,7 +689,8 @@ export default function App() {
 
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
-      const weekRecs = { ...(safePrev.weeklyRecords[safePrev.currentWeekId] || {}) };
+      const targetWeek = rec.weekId || safePrev.currentWeekId;
+      const weekRecs = { ...(safePrev.weeklyRecords[targetWeek] || {}) };
       const currentStudentRec: StudentWeeklyRecord = weekRecs[rec.studentId] || {
         studentId: rec.studentId,
         diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
@@ -707,7 +725,7 @@ export default function App() {
         ...safePrev,
         weeklyRecords: {
           ...safePrev.weeklyRecords,
-          [safePrev.currentWeekId]: weekRecs,
+          [targetWeek]: weekRecs,
         },
         morningDutyRecords: [newRecord, ...(safePrev.morningDutyRecords || [])],
       };
@@ -739,7 +757,8 @@ export default function App() {
 
     setAppState((prev) => {
       const safePrev = prev || resetToInitialData();
-      const weekRecs = { ...(safePrev.weeklyRecords[safePrev.currentWeekId] || {}) };
+      const targetWeek = rec.weekId || safePrev.currentWeekId;
+      const weekRecs = { ...(safePrev.weeklyRecords[targetWeek] || {}) };
       const currentStudentRec: StudentWeeklyRecord = weekRecs[rec.studentId] || {
         studentId: rec.studentId,
         diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
@@ -774,7 +793,7 @@ export default function App() {
         ...safePrev,
         weeklyRecords: {
           ...safePrev.weeklyRecords,
-          [safePrev.currentWeekId]: weekRecs,
+          [targetWeek]: weekRecs,
         },
         afternoonRecords: [newRecord, ...(safePrev.afternoonRecords || [])],
       };
@@ -1256,6 +1275,8 @@ export default function App() {
             groups={groups}
             currentWeekName={currentWeek.name}
             currentWeekId={currentWeekId}
+            weeks={weeks}
+            onSelectWeek={handleSelectWeek}
             currentRole={currentUserRole}
             assignedGroupIds={currentAccount?.assignedGroupIds}
             groupSubmissions={metadata.groupSubmissions}
@@ -1280,6 +1301,7 @@ export default function App() {
             currentWeekName={currentWeek.name}
             currentWeekId={currentWeekId}
             weeks={weeks}
+            onSelectWeek={handleSelectWeek}
             currentRole={currentUserRole}
             assignedGroupIds={currentAccount?.assignedGroupIds}
             currentAccount={currentAccount}
@@ -1303,6 +1325,8 @@ export default function App() {
             records={morningDutyRecords}
             currentWeekId={currentWeekId}
             currentWeekName={currentWeek.name}
+            weeks={weeks}
+            onSelectWeek={handleSelectWeek}
             currentRole={currentUserRole}
             assignedGroupIds={currentAccount?.assignedGroupIds}
             onAddMorningRecord={handleAddMorningRecord}
@@ -1316,6 +1340,8 @@ export default function App() {
             records={afternoonRecords}
             currentWeekId={currentWeekId}
             currentWeekName={currentWeek.name}
+            weeks={weeks}
+            onSelectWeek={handleSelectWeek}
             currentRole={currentUserRole}
             assignedGroupIds={currentAccount?.assignedGroupIds}
             onAddAfternoonRecord={handleAddAfternoonRecord}
@@ -1350,6 +1376,8 @@ export default function App() {
         currentRole={currentUserRole}
         assignedGroupIds={currentAccount?.assignedGroupIds}
         currentWeekId={currentWeekId}
+        weeks={weeks}
+        onSelectWeek={handleSelectWeek}
         onApplyViolation={handleApplyViolation}
       />
 

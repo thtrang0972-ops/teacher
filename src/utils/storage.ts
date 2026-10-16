@@ -87,8 +87,7 @@ export function loadAppState(): AppState {
 
     const weeks: WeekInfo[] = rawWeeks ? JSON.parse(rawWeeks) : INITIAL_WEEKS;
     const parsedWeekId = rawWeekId ? JSON.parse(rawWeekId) : 5;
-    // Chuyển sang Tuần 5 nếu trước đó đang ở tuần 6 hoặc tuần 4
-    const currentWeekId: number = parsedWeekId === 6 ? 5 : parsedWeekId;
+    const currentWeekId: number = typeof parsedWeekId === 'number' && parsedWeekId > 0 ? parsedWeekId : 5;
     const currentUserRole: UserRoleType = rawRole ? (rawRole as UserRoleType) : 'gvcn';
     const accounts: UserAccount[] = rawAccounts ? JSON.parse(rawAccounts) : INITIAL_ACCOUNTS;
     // Cập nhật tên GVCN và quyền nhóm 1 nếu lưu từ phiên trước
@@ -120,28 +119,43 @@ export function loadAppState(): AppState {
       weeklyRecords = {};
     }
 
-    // Yêu cầu: Bỏ dữ liệu ghi nhận vi phạm của Tuần 6, giữ nguyên vẹn dữ liệu Tuần 5
-    if (weeklyRecords[6] && Object.keys(weeklyRecords[6]).length > 0) {
-      weeklyRecords[5] = {
-        ...(weeklyRecords[5] || {}),
-        ...weeklyRecords[6],
-      };
-    }
-    // Xoá sạch toàn bộ ghi nhận vi phạm Tuần 6
-    weeklyRecords[6] = {};
-
-    if (weeklyRemarks[6]) {
-      const gRemarks = weeklyRemarks[6].groupRemarks;
-      const hasConsOrPros = Array.isArray(gRemarks)
-        ? (gRemarks as any[]).some((g) => g?.cons || g?.pros)
-        : Object.values(gRemarks || {}).some((g) => g?.cons || g?.pros);
-      if (hasConsOrPros) {
-        weeklyRemarks[5] = {
-          ...(weeklyRemarks[5] || {}),
-          ...weeklyRemarks[6],
+    // Chuẩn hóa và bảo tồn tuyệt đối dữ liệu Tuần 5
+    if (weeklyRecords[5] && students.length > 0) {
+      const normalizedW5: Record<string, StudentWeeklyRecord> = {};
+      students.forEach((s) => {
+        let rec = weeklyRecords[5][s.id];
+        if (!rec) {
+          // Khớp theo STT nếu bản ghi lưu dưới id tiền tố cũ
+          const matchingKey = Object.keys(weeklyRecords[5]).find((k) => k.endsWith(`-${s.stt}`));
+          if (matchingKey) rec = weeklyRecords[5][matchingKey];
+        }
+        normalizedW5[s.id] = rec || {
+          studentId: s.id,
+          diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
+          khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
+          matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
+          trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
         };
-      }
-      // Đưa nhận xét Tuần 6 về trạng thái trắng tinh
+      });
+      weeklyRecords[5] = normalizedW5;
+    }
+
+    // Tuần 6: Khởi tạo dữ liệu sạch (nếu chưa có) cho tuần mới, không ghi đè nếu đã có vi phạm ghi nhận
+    if (students.length > 0 && !weeklyRecords[6]) {
+      const cleanW6: Record<string, StudentWeeklyRecord> = {};
+      students.forEach((s) => {
+        cleanW6[s.id] = {
+          studentId: s.id,
+          diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
+          khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
+          matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
+          trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
+        };
+      });
+      weeklyRecords[6] = cleanW6;
+    }
+
+    if (!weeklyRemarks[6]) {
       weeklyRemarks[6] = {
         groupRemarks: {
           1: { groupId: 1, leaderName: 'Trần Như Mỹ', pros: '', cons: '', remindStudent: '', exemplaryStudent: '', selfRating: 'Tốt', updatedAt: '' },

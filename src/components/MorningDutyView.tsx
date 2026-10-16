@@ -18,6 +18,7 @@ import {
   GroupSummary,
   UserRoleType,
   UserAccount,
+  WeekInfo,
 } from '../types/discipline';
 import { canRecordMorningDuty, getRolePermissionBadge } from '../utils/permissions';
 import { formatDateVN } from '../utils/date';
@@ -28,6 +29,8 @@ interface MorningDutyViewProps {
   records: MorningDutyRecord[];
   currentWeekId: number;
   currentWeekName: string;
+  weeks?: WeekInfo[];
+  onSelectWeek?: (weekId: number) => void;
   currentRole?: UserRoleType;
   assignedGroupIds?: number[];
   currentAccount?: UserAccount;
@@ -90,6 +93,8 @@ export const MorningDutyView: React.FC<MorningDutyViewProps> = ({
   records,
   currentWeekId,
   currentWeekName,
+  weeks = [],
+  onSelectWeek,
   currentRole = 'gvcn',
   assignedGroupIds,
   currentAccount,
@@ -202,9 +207,29 @@ export const MorningDutyView: React.FC<MorningDutyViewProps> = ({
               <Clock className="w-4 h-4" />
               <span>Chuyên Đề Nề Nếp THCS</span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mt-1">
-              Theo Dõi & Ghi Nhận 15 Phút Đầu Giờ · {currentWeekName}
-            </h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-xl font-bold text-slate-900 mt-1">
+                Theo Dõi & Ghi Nhận 15 Phút Đầu Giờ · {currentWeekName}
+              </h2>
+              {onSelectWeek && weeks && weeks.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl text-xs shadow-2xs mt-1">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="font-bold text-blue-950">Tuần đang chọn:</span>
+                  <select
+                    value={currentWeekId}
+                    onChange={(e) => onSelectWeek(Number(e.target.value))}
+                    aria-label="Chọn tuần 15p đầu giờ"
+                    className="bg-white text-blue-900 font-extrabold text-xs px-2 py-0.5 rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
+                  >
+                    {weeks.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} {w.id === currentWeekId ? '(Đang chọn)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Kiểm tra truy bài kiến thức, khăn quàng đỏ, tác phong đồng phục, vệ sinh phòng học trước tiết 1
             </p>

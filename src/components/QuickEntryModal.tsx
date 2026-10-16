@@ -19,6 +19,7 @@ import {
   AfternoonRecord,
   UserRoleType,
   UserAccount,
+  WeekInfo,
 } from '../types/discipline';
 import { CRITERIA_LIST, CriterionMeta } from '../utils/scoring';
 import {
@@ -29,7 +30,7 @@ import {
   LABOR_CRITERIA_KEYS,
   DISCIPLINE_CRITERIA_KEYS,
 } from '../utils/permissions';
-import { Lock, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Lock, ShieldCheck, SlidersHorizontal, Calendar } from 'lucide-react';
 
 interface QuickEntryModalProps {
   isOpen: boolean;
@@ -40,6 +41,8 @@ interface QuickEntryModalProps {
   assignedGroupIds?: number[];
   currentAccount?: UserAccount;
   currentWeekId: number;
+  weeks?: WeekInfo[];
+  onSelectWeek?: (weekId: number) => void;
   onApplyViolation: (
     studentId: string,
     field: keyof Omit<StudentWeeklyRecord, 'studentId' | 'note'>,
@@ -49,7 +52,8 @@ interface QuickEntryModalProps {
     contextDetails?: {
       dayOfWeek?: 'Thứ 2' | 'Thứ 3' | 'Thứ 4' | 'Thứ 5' | 'Thứ 6' | 'Thứ 7';
       sessionName?: string;
-    }
+    },
+    targetWeekId?: number
   ) => void;
   onOpenAdjustScore?: (student?: Student) => void;
 }
@@ -63,9 +67,16 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
   assignedGroupIds,
   currentAccount,
   currentWeekId,
+  weeks = [],
+  onSelectWeek,
   onApplyViolation,
   onOpenAdjustScore,
 }) => {
+  const [targetWeekId, setTargetWeekId] = useState<number>(currentWeekId);
+
+  useEffect(() => {
+    setTargetWeekId(currentWeekId);
+  }, [currentWeekId, isOpen]);
   // Xác định danh sách nhóm được phép nhập
   const getAllowedGroups = (): number[] => {
     if (currentRole === 'gvcn' || currentRole === 'lopTruong') {
@@ -190,7 +201,8 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
       {
         dayOfWeek,
         sessionName: sessionDetail.trim() || undefined,
-      }
+      },
+      targetWeekId
     );
 
     onClose();
@@ -210,7 +222,7 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
                 Ghi Nhận Nề Nếp & Vi Phạm
               </h3>
               <p className="text-[11px] text-slate-500">
-                Tuần {currentWeekId} · Quy chế thi đua chuẩn cấp THCS
+                Tuần {targetWeekId} · Quy chế thi đua chuẩn cấp THCS
               </p>
             </div>
           </div>
@@ -226,6 +238,37 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
           {/* Scrollable Form Body (Cuộn mượt mà bên trong, không bao giờ tràn màn hình) */}
           <div className="overflow-y-auto flex-1 p-5 space-y-3.5 text-xs">
+            {/* Lựa chọn tuần ghi nhận (Tuần chọn hiện tại) */}
+            <div className="p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center justify-between gap-2 flex-wrap text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-blue-950">
+                <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Ghi nhận cho:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={targetWeekId}
+                  onChange={(e) => {
+                    const wid = Number(e.target.value);
+                    setTargetWeekId(wid);
+                    if (onSelectWeek) onSelectWeek(wid);
+                  }}
+                  className="bg-white text-blue-900 font-extrabold text-xs px-2.5 py-1 rounded-lg border border-blue-300 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  title="Chọn tuần để ghi nhận nề nếp & vi phạm"
+                >
+                  {(weeks && weeks.length > 0
+                    ? weeks
+                    : Array.from({ length: 18 }, (_, i) => ({ id: i + 1, name: `Tuần ${i + 1}` }))
+                  ).map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} {w.id === currentWeekId ? '(Hiện tại)' : ''}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded font-bold">
+                  Tuần {targetWeekId}
+                </span>
+              </div>
+            </div>
             {/* Permission Info Banner */}
             <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs">
               <div className="flex items-center gap-1.5 font-bold text-slate-800 flex-wrap">

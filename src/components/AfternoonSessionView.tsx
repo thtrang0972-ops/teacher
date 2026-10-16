@@ -18,6 +18,7 @@ import {
   AfternoonViolationType,
   UserRoleType,
   UserAccount,
+  WeekInfo,
 } from '../types/discipline';
 import { canRecordAfternoon } from '../utils/permissions';
 import { formatDateVN } from '../utils/date';
@@ -28,6 +29,8 @@ interface AfternoonSessionViewProps {
   records: AfternoonRecord[];
   currentWeekId: number;
   currentWeekName: string;
+  weeks?: WeekInfo[];
+  onSelectWeek?: (weekId: number) => void;
   currentRole?: UserRoleType;
   assignedGroupIds?: number[];
   currentAccount?: UserAccount;
@@ -69,6 +72,8 @@ export const AfternoonSessionView: React.FC<AfternoonSessionViewProps> = ({
   records,
   currentWeekId,
   currentWeekName,
+  weeks = [],
+  onSelectWeek,
   currentRole = 'gvcn',
   assignedGroupIds,
   currentAccount,
@@ -171,9 +176,29 @@ export const AfternoonSessionView: React.FC<AfternoonSessionViewProps> = ({
               <SunMoon className="w-4 h-4" />
               <span>Chuyên Đề Học Trái Buổi THCS</span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mt-1">
-              Quản Lý Nề Nếp & Điểm Danh Học Trái Buổi · {currentWeekName}
-            </h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-xl font-bold text-slate-900 mt-1">
+                Quản Lý Nề Nếp & Điểm Danh Học Trái Buổi · {currentWeekName}
+              </h2>
+              {onSelectWeek && weeks && weeks.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-xl text-xs shadow-2xs mt-1">
+                  <Calendar className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span className="font-bold text-amber-950">Tuần đang chọn:</span>
+                  <select
+                    value={currentWeekId}
+                    onChange={(e) => onSelectWeek(Number(e.target.value))}
+                    aria-label="Chọn tuần học trái buổi"
+                    className="bg-white text-amber-950 font-extrabold text-xs px-2 py-0.5 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs"
+                  >
+                    {weeks.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} {w.id === currentWeekId ? '(Đang chọn)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Theo dõi các buổi chiều Thể dục, Tin học máy tính, Phụ đạo, Hoạt động trải nghiệm
             </p>

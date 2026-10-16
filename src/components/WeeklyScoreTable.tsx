@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  Calendar,
   Search,
   Filter,
   Download,
@@ -50,6 +51,7 @@ interface WeeklyScoreTableProps {
   currentWeekName: string;
   currentWeekId?: number;
   weeks?: WeekInfo[];
+  onSelectWeek?: (weekId: number) => void;
   currentRole?: UserRoleType;
   assignedGroupIds?: number[];
   currentAccount?: UserAccount;
@@ -73,8 +75,9 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
   students,
   records,
   currentWeekName,
-  currentWeekId = 4,
+  currentWeekId = 5,
   weeks = [],
+  onSelectWeek,
   currentRole = 'gvcn',
   assignedGroupIds,
   currentAccount,
@@ -549,6 +552,24 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                 <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
                 Sổ Theo Dõi Thi Đua Nề Nếp Hàng Tuần
               </h2>
+              {onSelectWeek && weeks && weeks.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl text-xs shadow-2xs">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="font-bold text-blue-950">Tuần đang chọn:</span>
+                  <select
+                    value={currentWeekId}
+                    onChange={(e) => onSelectWeek(Number(e.target.value))}
+                    aria-label="Chọn tuần thi đua nề nếp"
+                    className="bg-white text-blue-900 font-extrabold text-xs px-2 py-0.5 rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
+                  >
+                    {weeks.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} {w.id === currentWeekId ? '(Đang chọn)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {/* Huy hiệu cảnh báo sớm: Hiển thị ngay số học sinh sa sút < 50 điểm */}
               {warningUnder50Count > 0 && (
                 <button

@@ -27,9 +27,10 @@ import {
   X,
   Lock,
   Users,
+  Calendar,
 } from 'lucide-react';
 import { generateWeeklyComment } from '../services/aiService';
-import { GroupSummary, Student, StudentWeeklyRecord, UserRoleType } from '../types/discipline';
+import { GroupSummary, Student, StudentWeeklyRecord, UserRoleType, WeekInfo } from '../types/discipline';
 import { canEditStudent, canManageGroupMembers } from '../utils/permissions';
 import { getClassificationColor } from '../utils/scoring';
 import { GroupLeaderTracker } from './GroupLeaderTracker';
@@ -38,6 +39,8 @@ interface GroupCompetitionViewProps {
   groups: GroupSummary[];
   currentWeekName: string;
   currentWeekId?: number;
+  weeks?: WeekInfo[];
+  onSelectWeek?: (weekId: number) => void;
   currentRole?: UserRoleType;
   assignedGroupIds?: number[];
   groupSubmissions?: Record<
@@ -64,6 +67,8 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
   groups = [],
   currentWeekName,
   currentWeekId = 1,
+  weeks = [],
+  onSelectWeek,
   currentRole = 'guest',
   assignedGroupIds,
   groupSubmissions,
@@ -323,9 +328,29 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
               <Trophy className="w-4 h-4 text-amber-500" />
               <span>Bảng Xếp Hạng Thi Đua 6 Nhóm</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
-              Kết Quả Thi Đua Nề Nếp · {currentWeekName}
-            </h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+                Kết Quả Thi Đua Nề Nếp · {currentWeekName}
+              </h2>
+              {onSelectWeek && weeks && weeks.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded-xl text-xs shadow-2xs mt-1">
+                  <Calendar className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span className="font-bold text-amber-950">Tuần đang chọn:</span>
+                  <select
+                    value={currentWeekId}
+                    onChange={(e) => onSelectWeek(Number(e.target.value))}
+                    aria-label="Chọn tuần thi đua"
+                    className="bg-white text-slate-900 font-extrabold text-xs px-2 py-0.5 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs"
+                  >
+                    {weeks.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} {w.id === currentWeekId ? '(Đang chọn)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Xếp hạng dựa trên Điểm trung bình nề nếp (Điểm chuẩn 100 - Điểm vi phạm + Điểm cộng)
             </p>
