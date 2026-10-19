@@ -178,6 +178,16 @@ export const CRITERIA_LIST: CriterionMeta[] = [
     categoryLabel: 'Kỷ luật',
     description: 'Sử dụng điện thoại di động trong giờ khi chưa được GV cho phép (-10đ/lần)',
   },
+  {
+    key: 'viPhamKhac',
+    code: 'VPK',
+    name: 'Vi phạm khác',
+    points: -2,
+    isBonus: false,
+    category: 'kyLuat',
+    categoryLabel: 'Kỷ luật',
+    description: 'Các vi phạm nề nếp, kỷ luật khác theo quy định (-2đ/lần)',
+  },
 ];
 
 export const BASE_SCORE = 100;
@@ -256,6 +266,7 @@ export function calculateStudentScore(
     huHongTS: 0,
     voLeGV: 0,
     dungDienThoai: 0,
+    viPhamKhac: 0,
   };
 
   let totalPenalty = 0;

@@ -32,6 +32,7 @@ export interface StudentWeeklyRecord {
   huHongTS: number;        // Hư hỏng tài sản (-5đ)
   voLeGV: number;          // Vô lễ với giáo viên (-5đ)
   dungDienThoai: number;   // Sử dụng điện thoại không phép (-10đ)
+  viPhamKhac: number;      // Vi phạm khác (-2đ)
   
   // Ghi chú chi tiết nếu có
   note?: string;

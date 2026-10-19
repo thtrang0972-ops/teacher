@@ -342,11 +342,14 @@ export const GroupCompetitionView: React.FC<GroupCompetitionViewProps> = ({
                     aria-label="Chọn tuần thi đua"
                     className="bg-white text-slate-900 font-extrabold text-xs px-2 py-0.5 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs"
                   >
-                    {weeks.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name} {w.id === currentWeekId ? '(Đang chọn)' : ''}
-                      </option>
-                    ))}
+                    {weeks.map((w) => {
+                      const cleanName = w.name.replace(/\s*\(Hiện tại\)/gi, '').trim();
+                      return (
+                        <option key={w.id} value={w.id}>
+                          {cleanName} {w.id === currentWeekId ? '(Đang chọn)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               )}

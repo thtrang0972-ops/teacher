@@ -207,11 +207,14 @@ export const Header: React.FC<HeaderProps> = ({
                   className="bg-white text-slate-900 font-bold text-xs px-2 py-0.5 rounded-lg border border-white/40 focus:outline-none focus:ring-2 focus:ring-amber-300 cursor-pointer shadow-2xs"
                   title="Chọn tuần thi đua"
                 >
-                  {weeks.map((w) => (
-                    <option key={w.id} value={w.id} className="text-slate-900 font-semibold">
-                      {w.name}
-                    </option>
-                  ))}
+                  {weeks.map((w) => {
+                    const cleanName = w.name.replace(/\s*\(Hiện tại\)/gi, '').trim();
+                    return (
+                      <option key={w.id} value={w.id} className="text-slate-900 font-semibold">
+                        {cleanName} {w.id === currentWeekId ? '(Đang chọn)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
                 <button
                   type="button"

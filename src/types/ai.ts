@@ -10,6 +10,7 @@ export interface StudentViolationsSummary {
   khongDongPhuc: number;
   matTratTu: number;
   dungDienThoai: number;
+  viPhamKhac?: number;
   morningDutyCount: number;
   afternoonDutyCount: number;
   diemTot: number;

@@ -50,6 +50,147 @@ export interface AppState {
   weeklyRemarks: Record<number, WeeklyRemarksStore>;
 }
 
+/**
+ * Chuẩn hóa và khôi phục toàn bộ ghi nhận của tất cả các tuần theo danh sách học sinh hiện tại.
+ * Tự động ánh xạ bản ghi từ các mã ID cũ (hs-1, hs-imp-...-1) dựa trên STT để bảo toàn 100% dữ liệu đã nhập.
+ */
+export function normalizeWeeklyRecordsForStudents(
+  weeklyRecords: Record<number, Record<string, StudentWeeklyRecord>>,
+  students: Student[]
+): Record<number, Record<string, StudentWeeklyRecord>> {
+  if (!students || students.length === 0 || !weeklyRecords) return weeklyRecords || {};
+
+  const normalized: Record<number, Record<string, StudentWeeklyRecord>> = {};
+
+  for (const [wIdStr, weekRecs] of Object.entries(weeklyRecords)) {
+    const wId = Number(wIdStr);
+    if (!weekRecs || typeof weekRecs !== 'object') continue;
+
+    const normalizedWeek: Record<string, StudentWeeklyRecord> = {};
+    const existingKeys = Object.keys(weekRecs);
+
+    students.forEach((s) => {
+      // 1. Khớp chính xác ID hiện tại
+      let rec = weekRecs[s.id];
+
+      // 2. Khớp theo STT nếu bản ghi được lưu với ID của lần tải danh sách trước (hs-1, hs-imp-...-1)
+      if (!rec) {
+        const candidateKeys = existingKeys.filter(
+          (k) => k.endsWith(`-${s.stt}`) || k === `hs-${s.stt}` || k === String(s.stt)
+        );
+        if (candidateKeys.length > 0) {
+          const keyWithData = candidateKeys.find((k) => {
+            const r = weekRecs[k];
+            if (!r) return false;
+            return (
+              (r.diTre || 0) > 0 ||
+              (r.nghiCP || 0) > 0 ||
+              (r.nghiKP || 0) > 0 ||
+              (r.boTiet || 0) > 0 ||
+              (r.ktbKlbKsb || 0) > 0 ||
+              (r.khongDongPhuc2 || 0) > 0 ||
+              (r.diemTot || 0) > 0 ||
+              (r.phatBieu || 0) > 0 ||
+              (r.khongDongPhuc5 || 0) > 0 ||
+              (r.matTratTu || 0) > 0 ||
+              (r.khongThamGiaVS || 0) > 0 ||
+              (r.noiTuc || 0) > 0 ||
+              (r.xaRac || 0) > 0 ||
+              (r.trucVSBan || 0) > 0 ||
+              (r.huHongTS || 0) > 0 ||
+              (r.voLeGV || 0) > 0 ||
+              (r.dungDienThoai || 0) > 0 ||
+              (r.viPhamKhac || 0) > 0 ||
+              !!r.note
+            );
+          });
+          rec = weekRecs[keyWithData || candidateKeys[0]];
+        }
+      }
+
+      normalizedWeek[s.id] = rec
+        ? {
+            studentId: s.id,
+            diTre: rec.diTre || 0,
+            nghiCP: rec.nghiCP || 0,
+            nghiKP: rec.nghiKP || 0,
+            boTiet: rec.boTiet || 0,
+            ktbKlbKsb: rec.ktbKlbKsb || 0,
+            khongDongPhuc2: rec.khongDongPhuc2 || 0,
+            diemTot: rec.diemTot || 0,
+            phatBieu: rec.phatBieu || 0,
+            khongDongPhuc5: rec.khongDongPhuc5 || 0,
+            matTratTu: rec.matTratTu || 0,
+            khongThamGiaVS: rec.khongThamGiaVS || 0,
+            noiTuc: rec.noiTuc || 0,
+            xaRac: rec.xaRac || 0,
+            trucVSBan: rec.trucVSBan || 0,
+            huHongTS: rec.huHongTS || 0,
+            voLeGV: rec.voLeGV || 0,
+            dungDienThoai: rec.dungDienThoai || 0,
+            viPhamKhac: rec.viPhamKhac || 0,
+            note: rec.note || '',
+          }
+        : {
+            studentId: s.id,
+            diTre: 0,
+            nghiCP: 0,
+            nghiKP: 0,
+            boTiet: 0,
+            ktbKlbKsb: 0,
+            khongDongPhuc2: 0,
+            diemTot: 0,
+            phatBieu: 0,
+            khongDongPhuc5: 0,
+            matTratTu: 0,
+            khongThamGiaVS: 0,
+            noiTuc: 0,
+            xaRac: 0,
+            trucVSBan: 0,
+            huHongTS: 0,
+            voLeGV: 0,
+            dungDienThoai: 0,
+            viPhamKhac: 0,
+            note: '',
+          };
+    });
+
+    normalized[wId] = normalizedWeek;
+  }
+
+  // Khởi tạo tuần 6 nếu chưa có
+  if (students.length > 0 && !normalized[6]) {
+    const cleanW6: Record<string, StudentWeeklyRecord> = {};
+    students.forEach((s) => {
+      cleanW6[s.id] = {
+        studentId: s.id,
+        diTre: 0,
+        nghiCP: 0,
+        nghiKP: 0,
+        boTiet: 0,
+        ktbKlbKsb: 0,
+        khongDongPhuc2: 0,
+        diemTot: 0,
+        phatBieu: 0,
+        khongDongPhuc5: 0,
+        matTratTu: 0,
+        khongThamGiaVS: 0,
+        noiTuc: 0,
+        xaRac: 0,
+        trucVSBan: 0,
+        huHongTS: 0,
+        voLeGV: 0,
+        dungDienThoai: 0,
+        viPhamKhac: 0,
+        note: '',
+      };
+    });
+    normalized[6] = cleanW6;
+  }
+
+  return normalized;
+}
+
 export function loadAppState(): AppState {
   try {
     const rawMeta = localStorage.getItem(STORAGE_KEYS.METADATA);
@@ -119,40 +260,9 @@ export function loadAppState(): AppState {
       weeklyRecords = {};
     }
 
-    // Chuẩn hóa và bảo tồn tuyệt đối dữ liệu Tuần 5
-    if (weeklyRecords[5] && students.length > 0) {
-      const normalizedW5: Record<string, StudentWeeklyRecord> = {};
-      students.forEach((s) => {
-        let rec = weeklyRecords[5][s.id];
-        if (!rec) {
-          // Khớp theo STT nếu bản ghi lưu dưới id tiền tố cũ
-          const matchingKey = Object.keys(weeklyRecords[5]).find((k) => k.endsWith(`-${s.stt}`));
-          if (matchingKey) rec = weeklyRecords[5][matchingKey];
-        }
-        normalizedW5[s.id] = rec || {
-          studentId: s.id,
-          diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
-          khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
-          matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-          trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
-        };
-      });
-      weeklyRecords[5] = normalizedW5;
-    }
-
-    // Tuần 6: Khởi tạo dữ liệu sạch (nếu chưa có) cho tuần mới, không ghi đè nếu đã có vi phạm ghi nhận
-    if (students.length > 0 && !weeklyRecords[6]) {
-      const cleanW6: Record<string, StudentWeeklyRecord> = {};
-      students.forEach((s) => {
-        cleanW6[s.id] = {
-          studentId: s.id,
-          diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
-          khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
-          matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-          trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
-        };
-      });
-      weeklyRecords[6] = cleanW6;
+    // Chuẩn hóa và khôi phục toàn bộ dữ liệu của tất cả các tuần đã nhập
+    if (students.length > 0) {
+      weeklyRecords = normalizeWeeklyRecordsForStudents(weeklyRecords, students);
     }
 
     if (!weeklyRemarks[6]) {

@@ -164,6 +164,7 @@ export const AdjustScoreModal: React.FC<AdjustScoreModalProps> = ({
       huHongTS: 0,
       voLeGV: 0,
       dungDienThoai: 0,
+      viPhamKhac: 0,
       note: '',
     };
     setDraftRecord({ ...orig });

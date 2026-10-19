@@ -272,6 +272,9 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                   <th rowSpan={2} className="p-1 border-r border-slate-400">
                     Dùng ĐT<br />-10
                   </th>
+                  <th rowSpan={2} className="p-1 border-r border-slate-400">
+                    VP khác<br />-2
+                  </th>
                   <th rowSpan={2} className="p-1 border-r border-slate-400 font-bold bg-slate-200">
                     Điểm chuẩn<br />100
                   </th>
@@ -319,6 +322,9 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                     <td className="p-1 border-r border-slate-300">{item.record.voLeGV || ''}</td>
                     <td className="p-1 border-r border-slate-300 font-semibold text-rose-700">
                       {item.record.dungDienThoai || ''}
+                    </td>
+                    <td className="p-1 border-r border-slate-300 font-semibold text-rose-700">
+                      {item.record.viPhamKhac || ''}
                     </td>
                     <td className="p-1 border-r border-slate-300 font-semibold text-slate-600">100</td>
                     <td className="p-1 border-r border-slate-300 font-semibold">

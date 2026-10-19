@@ -55,6 +55,7 @@ export function generateAutoTeacherRemarkForGroup({
       if (rec.xaRac && rec.xaRac > 0) issues.push('để rác bừa bãi');
       if (rec.boTiet && rec.boTiet > 0) issues.push('bỏ tiết');
       if (rec.dungDienThoai && rec.dungDienThoai > 0) issues.push('dùng điện thoại');
+      if (rec.viPhamKhac && rec.viPhamKhac > 0) issues.push('vi phạm nề nếp khác');
 
       if (issues.length > 0) {
         penalizedStudents.push({ name: st.name, issues });

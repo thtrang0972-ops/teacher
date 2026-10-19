@@ -98,6 +98,7 @@ export function exportWeeklyReportToExcel(data: ReportExportData): void {
     'Hư hỏng tài sản (-5)': item.record.huHongTS || 0,
     'Vô lễ GV (-5)': item.record.voLeGV || 0,
     'Dùng ĐT trong giờ (-10)': item.record.dungDienThoai || 0,
+    'Vi phạm khác (-2)': item.record.viPhamKhac || 0,
     'Điểm chuẩn': item.baseScore,
     'Tổng điểm trừ': -item.totalPenalty,
     'Tổng điểm cộng': item.totalBonus,
@@ -229,6 +230,7 @@ export function exportWeeklyReportToWord(data: ReportExportData): void {
           <th rowspan="2" style="border:1px solid #333;">Hư TS<br>-5</th>
           <th rowspan="2" style="border:1px solid #333;">Vô lễ<br>-5</th>
           <th rowspan="2" style="border:1px solid #333; color:#b91c1c;">Dùng ĐT<br>-10</th>
+          <th rowspan="2" style="border:1px solid #333; color:#b91c1c;">VP khác<br>-2</th>
           <th rowspan="2" style="border:1px solid #333; background-color:#e2e8f0; font-weight:bold;">Đ.Chuẩn</th>
           <th rowspan="2" style="border:1px solid #333;">+/-</th>
           <th rowspan="2" style="border:1px solid #333; background-color:#dbeafe; font-weight:bold;">Tổng điểm</th>
@@ -264,6 +266,7 @@ export function exportWeeklyReportToWord(data: ReportExportData): void {
             <td style="border:1px solid #333;">${item.record.huHongTS || ''}</td>
             <td style="border:1px solid #333;">${item.record.voLeGV || ''}</td>
             <td style="border:1px solid #333; color:#b91c1c; font-weight:bold;">${item.record.dungDienThoai || ''}</td>
+            <td style="border:1px solid #333; color:#b91c1c; font-weight:bold;">${item.record.viPhamKhac || ''}</td>
             <td style="border:1px solid #333; font-weight:bold;">100</td>
             <td style="border:1px solid #333; font-weight:bold;">${item.netChange > 0 ? `+${item.netChange}` : item.netChange < 0 ? `${item.netChange}` : '0'}</td>
             <td style="border:1px solid #333; font-weight:bold; background-color:#eff6ff; font-size:10pt;">${item.finalScore}</td>

@@ -37,6 +37,7 @@ import {
   loadAppState,
   saveAppState,
   resetToInitialData,
+  normalizeWeeklyRecordsForStudents,
   type AppState,
 } from './utils/storage';
 import { calculateGroupSummaries } from './utils/scoring';
@@ -211,40 +212,11 @@ export default function App() {
               }
             }
 
-            // Chuẩn hóa và bảo tồn tuyệt đối dữ liệu Tuần 5
-            if (mergedWeeklyRecords[5] && syncedStudents.length > 0) {
-              const normalizedW5: Record<string, StudentWeeklyRecord> = {};
-              syncedStudents.forEach((s) => {
-                let rec = mergedWeeklyRecords[5][s.id];
-                if (!rec) {
-                  const matchingKey = Object.keys(mergedWeeklyRecords[5]).find((k) => k.endsWith(`-${s.stt}`));
-                  if (matchingKey) rec = mergedWeeklyRecords[5][matchingKey];
-                }
-                normalizedW5[s.id] = rec || {
-                  studentId: s.id,
-                  diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
-                  khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
-                  matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-                  trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
-                };
-              });
-              mergedWeeklyRecords[5] = normalizedW5;
-            }
-
-            // Tuần 6: Khởi tạo dữ liệu sạch (nếu chưa có) cho tuần mới, không ghi đè nếu đã có vi phạm ghi nhận
-            if (syncedStudents.length > 0 && !mergedWeeklyRecords[6]) {
-              const cleanW6: Record<string, StudentWeeklyRecord> = {};
-              syncedStudents.forEach((s) => {
-                cleanW6[s.id] = {
-                  studentId: s.id,
-                  diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
-                  khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
-                  matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-                  trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
-                };
-              });
-              mergedWeeklyRecords[6] = cleanW6;
-            }
+            // Chuẩn hóa và khôi phục toàn bộ dữ liệu ghi nhận của tất cả các tuần (Tuần 1 -> Tuần 6)
+            const fullyNormalizedRecords = normalizeWeeklyRecordsForStudents(
+              mergedWeeklyRecords,
+              syncedStudents
+            );
 
             const mergedRemarks = remote.weeklyRemarks || safePrev.weeklyRemarks || {};
             // Khởi tạo nhận xét Tuần 6 nếu chưa có
@@ -282,7 +254,7 @@ export default function App() {
               weeks: Array.isArray(remote.weeks) ? remote.weeks : safePrev.weeks || [],
               currentWeekId: targetWeekId,
               accounts: syncedAccounts,
-              weeklyRecords: mergedWeeklyRecords,
+              weeklyRecords: fullyNormalizedRecords,
               morningDutyRecords: Array.isArray(remote.morningDutyRecords) ? remote.morningDutyRecords : (safePrev.morningDutyRecords || []),
               afternoonRecords: Array.isArray(remote.afternoonRecords) ? remote.afternoonRecords : (safePrev.afternoonRecords || []),
               weeklyRemarks: mergedRemarks,
@@ -400,11 +372,17 @@ export default function App() {
                 }
               }
             }
+            const currentStudents = remote.students || safePrev.students;
+            const fullyNormalizedRecords = normalizeWeeklyRecordsForStudents(
+              mergedWeeklyRecords,
+              currentStudents
+            );
+
             const nextState: AppState = {
               ...safePrev,
               metadata: remote.metadata || safePrev.metadata,
-              students: remote.students || safePrev.students,
-              weeklyRecords: mergedWeeklyRecords,
+              students: currentStudents,
+              weeklyRecords: fullyNormalizedRecords,
               morningDutyRecords: Array.isArray(remote.morningDutyRecords) ? remote.morningDutyRecords : safePrev.morningDutyRecords,
               afternoonRecords: Array.isArray(remote.afternoonRecords) ? remote.afternoonRecords : safePrev.afternoonRecords,
               weeklyRemarks: remote.weeklyRemarks || safePrev.weeklyRemarks,
@@ -560,7 +538,7 @@ export default function App() {
         diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
         khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
         matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-        trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
+        trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, viPhamKhac: 0,
       };
 
       weekRecs[studentId] = {
@@ -605,7 +583,7 @@ export default function App() {
         diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
         khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
         matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-        trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
+        trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, viPhamKhac: 0,
       };
 
       const currentVal = Number(currentStudentRec[field] || 0);
@@ -696,7 +674,7 @@ export default function App() {
         diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
         khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
         matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-        trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
+        trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, viPhamKhac: 0,
       };
 
       if (rec.violationType === 'khanQuangPhuHieu') {
@@ -710,7 +688,7 @@ export default function App() {
       } else if (rec.violationType === 'matTratTu15p') {
         currentStudentRec.matTratTu = (currentStudentRec.matTratTu || 0) + 1;
       } else {
-        currentStudentRec.khongDongPhuc2 = (currentStudentRec.khongDongPhuc2 || 0) + 1;
+        currentStudentRec.viPhamKhac = (currentStudentRec.viPhamKhac || 0) + 1;
       }
 
       if (rec.note) {
@@ -764,7 +742,7 @@ export default function App() {
         diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
         khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
         matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-        trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
+        trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0, viPhamKhac: 0,
       };
 
       if (rec.violationType === 'vangKP') {
@@ -779,6 +757,8 @@ export default function App() {
         currentStudentRec.khongDongPhuc2 = (currentStudentRec.khongDongPhuc2 || 0) + 1;
       } else if (rec.violationType === 'matTratTu') {
         currentStudentRec.matTratTu = (currentStudentRec.matTratTu || 0) + 1;
+      } else if (rec.violationType === 'khac') {
+        currentStudentRec.viPhamKhac = (currentStudentRec.viPhamKhac || 0) + 1;
       }
 
       if (rec.note) {
@@ -974,28 +954,17 @@ export default function App() {
         safePrev.metadata,
         safePrev.accounts || []
       );
-      const newWeeklyRecords = { ...safePrev.weeklyRecords };
-      const currentWeekRecs: Record<string, StudentWeeklyRecord> = {};
-
-      syncedStudents.forEach((s) => {
-        const existingRec = safePrev.weeklyRecords[safePrev.currentWeekId]?.[s.id];
-        currentWeekRecs[s.id] = existingRec || {
-          studentId: s.id,
-          diTre: 0, nghiCP: 0, nghiKP: 0, boTiet: 0, ktbKlbKsb: 0,
-          khongDongPhuc2: 0, diemTot: 0, phatBieu: 0, khongDongPhuc5: 0,
-          matTratTu: 0, khongThamGiaVS: 0, noiTuc: 0, xaRac: 0,
-          trucVSBan: 0, huHongTS: 0, voLeGV: 0, dungDienThoai: 0,
-        };
-      });
-
-      newWeeklyRecords[safePrev.currentWeekId] = currentWeekRecs;
+      const normalizedWeeklyRecords = normalizeWeeklyRecordsForStudents(
+        safePrev.weeklyRecords,
+        syncedStudents
+      );
 
       const nextState: AppState = {
         ...safePrev,
         students: syncedStudents,
         metadata: syncedMetadata,
         accounts: syncedAccounts,
-        weeklyRecords: newWeeklyRecords,
+        weeklyRecords: normalizedWeeklyRecords,
       };
       saveAppState(nextState);
       syncToCloud(nextState, true);

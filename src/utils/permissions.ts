@@ -21,6 +21,7 @@ export const DISCIPLINE_CRITERIA_KEYS = [
   'noiTuc',
   'dungDienThoai',
   'voLeGV',
+  'viPhamKhac',
 ] as const;
 
 /**

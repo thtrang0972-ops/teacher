@@ -221,11 +221,14 @@ export const MorningDutyView: React.FC<MorningDutyViewProps> = ({
                     aria-label="Chọn tuần 15p đầu giờ"
                     className="bg-white text-blue-900 font-extrabold text-xs px-2 py-0.5 rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
                   >
-                    {weeks.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name} {w.id === currentWeekId ? '(Đang chọn)' : ''}
-                      </option>
-                    ))}
+                    {weeks.map((w) => {
+                      const cleanName = w.name.replace(/\s*\(Hiện tại\)/gi, '').trim();
+                      return (
+                        <option key={w.id} value={w.id}>
+                          {cleanName} {w.id === currentWeekId ? '(Đang chọn)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               )}

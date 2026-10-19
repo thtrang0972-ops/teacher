@@ -83,7 +83,8 @@ export const GroupLeaderTracker: React.FC<GroupLeaderTrackerProps> = ({
             (r.trucVSBan || 0) +
             (r.huHongTS || 0) +
             (r.voLeGV || 0) +
-            (r.dungDienThoai || 0);
+            (r.dungDienThoai || 0) +
+            (r.viPhamKhac || 0);
           const sumBonus = (r.diemTot || 0) + (r.phatBieu || 0);
 
           violationCount += sumPenalty;

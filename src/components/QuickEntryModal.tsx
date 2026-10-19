@@ -258,11 +258,14 @@ export const QuickEntryModal: React.FC<QuickEntryModalProps> = ({
                   {(weeks && weeks.length > 0
                     ? weeks
                     : Array.from({ length: 18 }, (_, i) => ({ id: i + 1, name: `Tuần ${i + 1}` }))
-                  ).map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} {w.id === currentWeekId ? '(Hiện tại)' : ''}
-                    </option>
-                  ))}
+                  ).map((w) => {
+                    const cleanName = w.name.replace(/\s*\(Hiện tại\)/gi, '').trim();
+                    return (
+                      <option key={w.id} value={w.id}>
+                        {cleanName} {w.id === targetWeekId ? '(Đang chọn)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
                 <span className="text-[10px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded font-bold">
                   Tuần {targetWeekId}

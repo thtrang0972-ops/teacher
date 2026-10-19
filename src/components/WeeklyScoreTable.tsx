@@ -55,7 +55,11 @@ interface WeeklyScoreTableProps {
   currentRole?: UserRoleType;
   assignedGroupIds?: number[];
   currentAccount?: UserAccount;
-  onUpdateRecord: (studentId: string, updatedFields: Partial<StudentWeeklyRecord>) => void;
+  onUpdateRecord: (
+    studentId: string,
+    updatedFields: Partial<StudentWeeklyRecord>,
+    targetWeekId?: number
+  ) => void;
   onUpdateStudent?: (studentId: string, updatedFields: Partial<Student>) => void;
   onQuickRecordStudent: (student: Student) => void;
   onOpenQuickEntry?: () => void;
@@ -162,6 +166,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
       huHongTS: 0,
       voLeGV: 0,
       dungDienThoai: 0,
+      viPhamKhac: 0,
     };
 
     let totalPenalty = 0;
@@ -251,8 +256,8 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
       ...prev.slice(0, 29),
     ]);
 
-    // Cập nhật bản ghi học sinh
-    onUpdateRecord(studentId, { [field]: newVal });
+    // Cập nhật bản ghi học sinh theo đúng tuần đang chọn
+    onUpdateRecord(studentId, { [field]: newVal }, currentWeekId);
 
     // Ghi nhận vào Nhật ký lịch sử sửa điểm (Audit Log)
     const editorName =
@@ -298,8 +303,8 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
     const [lastAction, ...remainingStack] = undoStack;
     setUndoStack(remainingStack);
 
-    // Khôi phục giá trị cũ
-    onUpdateRecord(lastAction.studentId, { [lastAction.field]: lastAction.prevValue });
+    // Khôi phục giá trị cũ theo đúng tuần đang chọn
+    onUpdateRecord(lastAction.studentId, { [lastAction.field]: lastAction.prevValue }, currentWeekId);
 
     const criterion = CRITERIA_LIST.find((c) => c.key === lastAction.field);
     const editorName =
@@ -354,6 +359,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
       'Hư hỏng TS (-5)',
       'Vô lễ GV (-5)',
       'Sử dụng ĐT (-10)',
+      'Vi phạm khác (-2)',
       'Điểm chuẩn',
       'Điểm trừ/cộng',
       'Tổng điểm còn lại',
@@ -381,6 +387,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
       c.record.huHongTS,
       c.record.voLeGV,
       c.record.dungDienThoai,
+      c.record.viPhamKhac || 0,
       100,
       c.netChange,
       c.finalScore,
@@ -479,7 +486,8 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                   (r.trucVSBan || 0) +
                   (r.huHongTS || 0) +
                   (r.voLeGV || 0) +
-                  (r.dungDienThoai || 0);
+                  (r.dungDienThoai || 0) +
+                  (r.viPhamKhac || 0);
                 vCount += p;
                 bCount += (r.diemTot || 0) + (r.phatBieu || 0);
               }
@@ -562,11 +570,14 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                     aria-label="Chọn tuần thi đua nề nếp"
                     className="bg-white text-blue-900 font-extrabold text-xs px-2 py-0.5 rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
                   >
-                    {weeks.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name} {w.id === currentWeekId ? '(Đang chọn)' : ''}
-                      </option>
-                    ))}
+                    {weeks.map((w) => {
+                      const cleanName = w.name.replace(/\s*\(Hiện tại\)/gi, '').trim();
+                      return (
+                        <option key={w.id} value={w.id}>
+                          {cleanName} {w.id === currentWeekId ? '(Đang chọn)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               )}
@@ -641,7 +652,8 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                       (r.trucVSBan || 0) +
                       (r.huHongTS || 0) +
                       (r.voLeGV || 0) +
-                      (r.dungDienThoai || 0);
+                      (r.dungDienThoai || 0) +
+                      (r.viPhamKhac || 0);
                     return total > 0 || !!r.note;
                   });
                 };
@@ -921,6 +933,10 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                   Sử dụng điện thoại
                   <span className="block text-[10px] font-normal text-slate-500">-10</span>
                 </th>
+                <th rowSpan={2} className="p-2 border-r border-slate-300 w-14 text-rose-700">
+                  Vi phạm khác
+                  <span className="block text-[10px] font-normal text-slate-500">-2</span>
+                </th>
                 <th rowSpan={2} className="p-2 border-r border-slate-300 w-14 bg-slate-200 font-bold text-slate-900">
                   Điểm chuẩn
                   <span className="block text-[10px] font-normal">100</span>
@@ -950,7 +966,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={23} className="py-12 px-4 text-center text-slate-500 bg-slate-50/50">
+                  <td colSpan={24} className="py-12 px-4 text-center text-slate-500 bg-slate-50/50">
                     <p className="font-extrabold text-sm text-slate-800">
                       {students.length === 0 ? 'Danh sách học sinh đang trống' : 'Không có học sinh nào phù hợp'}
                     </p>
@@ -1352,6 +1368,24 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
                       );
                     })()}
 
+                    {/* Vi phạm khác */}
+                    {(() => {
+                      const p = checkCellPermission(currentRole, item.student.groupId, 'viPhamKhac', assignedGroupIds);
+                      return (
+                        <td className="p-1 border-r border-slate-200 text-center font-mono tabular-nums">
+                          <NumberCell
+                            value={rec.viPhamKhac}
+                            isDanger={rec.viPhamKhac > 0}
+                            disabled={!p.allowed}
+                            disabledReason={p.reason}
+                            onIncrement={() => handleCellDelta(item.student.id, 'viPhamKhac', 1)}
+                            onDecrement={() => handleCellDelta(item.student.id, 'viPhamKhac', -1)}
+                            onUpdateValue={(val) => handleCellChange(item.student.id, 'viPhamKhac', val)}
+                          />
+                        </td>
+                      );
+                    })()}
+
                     {/* Điểm chuẩn */}
                     <td className="p-2 border-r border-slate-200 text-center font-mono font-semibold text-slate-500 tabular-nums">
                       100
@@ -1436,7 +1470,7 @@ export const WeeklyScoreTable: React.FC<WeeklyScoreTableProps> = ({
         currentWeekId={currentWeekId}
         currentWeekName={currentWeekName}
         onSaveAdjustment={(studentId, updatedRecord) => {
-          onUpdateRecord(studentId, updatedRecord);
+          onUpdateRecord(studentId, updatedRecord, currentWeekId);
           setAuditLogs(loadAuditLogs());
         }}
         onUpdateStudentName={(studentId, newName) => {

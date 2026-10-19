@@ -63,7 +63,8 @@ export const OverviewStatsBar: React.FC<OverviewStatsBarProps> = ({
       (r.trucVSBan || 0) +
       (r.huHongTS || 0) +
       (r.voLeGV || 0) +
-      (r.dungDienThoai || 0);
+      (r.dungDienThoai || 0) +
+      (r.viPhamKhac || 0);
     return sum + errors;
   }, 0);
   const totalPenaltyPoints = calculated.reduce((sum, c) => sum + c.totalPenalty, 0);
